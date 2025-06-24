@@ -9,10 +9,17 @@ import type { Quiz } from "@/lib/types";
 import { FilePlus, Play, BarChart2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreatingSession, setIsCreatingSession] = useState<string | null>(null);
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const storedQuizzes = localStorage.getItem("quizzes");
@@ -21,6 +28,31 @@ export default function DashboardPage() {
     }
     setLoading(false);
   }, []);
+  
+  const handleHostQuiz = async (quiz: Quiz) => {
+    setIsCreatingSession(quiz.id);
+    try {
+        const gamePin = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        await setDoc(doc(db, "games", gamePin), {
+            quizData: quiz,
+            status: "waiting", // waiting, in-progress, finished
+            currentQuestionIndex: -1,
+            createdAt: serverTimestamp(),
+        });
+
+        router.push(`/play/${gamePin}?host=true`);
+    } catch (error) {
+        console.error("Error creating game session: ", error);
+        toast({
+            title: "Failed to host quiz",
+            description: "Could not create a game session. Please try again.",
+            variant: "destructive"
+        })
+    } finally {
+        setIsCreatingSession(null);
+    }
+  }
 
   const QuizSkeleton = () => (
     <Card className="bg-card/60 backdrop-blur-sm">
@@ -80,11 +112,13 @@ export default function DashboardPage() {
                       Results
                     </Link>
                   </Button>
-                  <Button size="sm" asChild>
-                    <Link href={`/play/${quiz.id}?host=true`}>
-                       <Play className="mr-2 h-4 w-4" />
-                      Host
-                    </Link>
+                  <Button size="sm" onClick={() => handleHostQuiz(quiz)} disabled={isCreatingSession === quiz.id}>
+                    {isCreatingSession === quiz.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Play className="mr-2 h-4 w-4" />
+                    )}
+                    Host
                   </Button>
                 </CardFooter>
               </Card>

@@ -6,38 +6,64 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Gamepad2, Loader2 } from "lucide-react";
+import { Gamepad2, Loader2, Bot } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Quiz } from "@/lib/types";
 import Link from "next/link";
-import { Bot } from "lucide-react";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, addDoc, collection } from "firebase/firestore";
 
 export default function JoinPage() {
     const [code, setCode] = useState("");
+    const [nickname, setNickname] = useState("");
+    const [step, setStep] = useState<"code" | "nickname">("code");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
 
-    const handleJoin = () => {
+    const handleCodeSubmit = async () => {
         if (!code) {
             toast({ title: "Please enter a game code.", variant: "destructive" });
             return;
         }
         setIsLoading(true);
         
-        setTimeout(() => {
-            const storedQuizzes = localStorage.getItem("quizzes");
-            const quizzes: Quiz[] = storedQuizzes ? JSON.parse(storedQuizzes) : [];
-            const quizExists = quizzes.some(q => q.id === code);
+        try {
+            const gameRef = doc(db, "games", code);
+            const gameSnap = await getDoc(gameRef);
 
-            if (quizExists) {
-                router.push(`/play/${code}`);
+            if (gameSnap.exists() && gameSnap.data().status === 'waiting') {
+                setStep("nickname");
             } else {
-                toast({ title: "Game not found", description: "The code you entered is invalid.", variant: "destructive" });
+                toast({ title: "Game not found", description: "The code is invalid or the game has already started.", variant: "destructive" });
             }
-            setIsLoading(false);
-        }, 1000);
+        } catch (error) {
+            toast({ title: "Error", description: "Could not verify game code. Please try again.", variant: "destructive" });
+            console.error(error);
+        }
+        setIsLoading(false);
     };
+
+    const handleNicknameSubmit = async () => {
+        if (!nickname) {
+            toast({ title: "Please enter a nickname.", variant: "destructive" });
+            return;
+        }
+        setIsLoading(true);
+
+        try {
+            const playersCollectionRef = collection(db, "games", code, "players");
+            const playerDocRef = await addDoc(playersCollectionRef, {
+                name: nickname,
+                score: 0
+            });
+            localStorage.setItem(`player-${code}`, JSON.stringify({ id: playerDocRef.id, name: nickname }));
+            router.push(`/play/${code}`);
+        } catch (error) {
+            toast({ title: "Error", description: "Could not join the game. Please try again.", variant: "destructive" });
+            console.error(error);
+        }
+        setIsLoading(false);
+    }
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -47,25 +73,42 @@ export default function JoinPage() {
             </Link>
             <Card className="w-full max-w-sm shadow-2xl bg-card/60 backdrop-blur-sm">
                 <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-headline">Join a Game</CardTitle>
-                    <CardDescription>Enter the code provided by the host.</CardDescription>
+                    <CardTitle className="text-2xl font-headline">
+                        {step === 'code' ? "Join a Game" : "Enter Your Nickname"}
+                    </CardTitle>
+                    <CardDescription>
+                        {step === 'code' ? "Enter the code provided by the host." : "This name will be shown on the leaderboard."}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <Input 
-                        placeholder="Enter Game Code" 
-                        className="text-center text-lg h-12 tracking-widest font-bold"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                    />
-                    <Button className="w-full" size="lg" onClick={handleJoin} disabled={isLoading}>
-                        {isLoading ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Gamepad2 className="mr-2 h-4 w-4" />
-                        )}
-                        Join Game
-                    </Button>
+                    {step === 'code' ? (
+                        <>
+                            <Input 
+                                placeholder="Enter Game Code" 
+                                className="text-center text-lg h-12 tracking-widest font-bold"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value.trim())}
+                                onKeyDown={(e) => e.key === 'Enter' && handleCodeSubmit()}
+                            />
+                            <Button className="w-full" size="lg" onClick={handleCodeSubmit} disabled={isLoading}>
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Gamepad2 className="mr-2 h-4 w-4" />}
+                                Join
+                            </Button>
+                        </>
+                    ) : (
+                         <>
+                            <Input 
+                                placeholder="e.g. QuizMaster" 
+                                className="text-center text-lg h-12 font-bold"
+                                value={nickname}
+                                onChange={(e) => setNickname(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleNicknameSubmit()}
+                            />
+                            <Button className="w-full" size="lg" onClick={handleNicknameSubmit} disabled={isLoading}>
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Let's Go!"}
+                            </Button>
+                        </>
+                    )}
                 </CardContent>
             </Card>
         </div>

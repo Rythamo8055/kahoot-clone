@@ -19,3 +19,9 @@ export interface QuizResult {
   totalQuestions: number;
   date: string;
 }
+
+export interface Player {
+  id: string;
+  name: string;
+  score: number;
+}
