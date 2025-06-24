@@ -32,7 +32,7 @@ export default function BottomNav() {
   return (
     <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
       <TooltipProvider delayDuration={0}>
-        <div className="flex h-16 items-center justify-center gap-1 rounded-full border bg-card p-2 shadow-lg backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
+        <div className="flex h-16 items-center justify-center gap-1 rounded-full border bg-card/60 p-2 shadow-lg backdrop-blur-sm md:bg-card">
           {navLinks.map((link) => (
             <Tooltip key={link.href}>
               <TooltipTrigger asChild>
