@@ -61,7 +61,7 @@ export default function ProfilePage() {
             <Skeleton className="h-5 w-48" />
           </div>
         </div>
-        <Card className="bg-card/80 backdrop-blur-sm">
+        <Card className="bg-card/60 backdrop-blur-sm md:bg-card">
           <CardHeader>
             <Skeleton className="h-7 w-40" />
             <Skeleton className="h-4 w-56" />
@@ -112,7 +112,7 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            <Card className="bg-card/80 backdrop-blur-sm">
+            <Card className="bg-card/60 backdrop-blur-sm md:bg-card">
                 <CardHeader>
                     <CardTitle className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz History</CardTitle>
                     <CardDescription>Your past quiz performances.</CardDescription>
@@ -121,7 +121,7 @@ export default function ProfilePage() {
                     {results.length > 0 ? (
                         <ul className="space-y-4">
                             {results.map((result, index) => (
-                                <li key={index} className="flex justify-between items-center p-4 border rounded-lg hover:bg-card/80 transition-colors backdrop-blur-sm">
+                                <li key={index} className="flex justify-between items-center p-4 border rounded-lg hover:bg-accent/20 transition-colors">
                                     <div>
                                         <p className="font-semibold">{result.quizTitle || `Quiz ID: ${result.quizId}`}</p>
                                         <div className="flex items-center text-sm text-muted-foreground mt-1">

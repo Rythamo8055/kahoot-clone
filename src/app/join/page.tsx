@@ -39,12 +39,12 @@ export default function JoinPage() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center justify-center min-h-screen p-4">
              <Link href="/" className="absolute top-6 left-6 flex items-center space-x-2">
                 <Bot className="h-6 w-6 text-primary" />
                 <span className="font-bold sm:inline-block font-headline text-foreground">QuizAI</span>
             </Link>
-            <Card className="w-full max-w-sm shadow-2xl">
+            <Card className="w-full max-w-sm shadow-2xl bg-card/60 backdrop-blur-sm md:bg-card">
                 <CardHeader className="text-center">
                     <CardTitle className="text-2xl font-headline">Join a Game</CardTitle>
                     <CardDescription>Enter the code provided by the host.</CardDescription>

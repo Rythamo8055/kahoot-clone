@@ -105,7 +105,7 @@ export default function CreateQuizPage() {
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto space-y-8">
-        <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
+        <Card className="bg-card/60 backdrop-blur-sm md:bg-card">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Sparkles className="h-6 w-6 mr-3 text-primary" />
@@ -134,7 +134,7 @@ export default function CreateQuizPage() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <Card className="bg-card/80 backdrop-blur-sm">
+            <Card className="bg-card/60 backdrop-blur-sm md:bg-card">
               <CardHeader>
                 <CardTitle className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz Details</CardTitle>
               </CardHeader>
@@ -151,7 +151,7 @@ export default function CreateQuizPage() {
             <div className="space-y-4">
               <h2 className="text-2xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Questions</h2>
               {fields.map((field, index) => (
-                <Card key={field.id} className="relative pt-6 bg-card/80 backdrop-blur-sm">
+                <Card key={field.id} className="relative pt-6 bg-card/60 backdrop-blur-sm md:bg-card">
                   <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => fields.length > 1 ? remove(index) : null}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
