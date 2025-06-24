@@ -1,27 +1,56 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import AppShell from "@/components/app-shell";
 import type { QuizResult } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Calendar, CheckSquare } from "lucide-react";
+import { Trophy, Calendar, CheckSquare, Edit2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProfilePage() {
     const [results, setResults] = useState<QuizResult[]>([]);
     const [loading, setLoading] = useState(true);
+    const [avatarSrc, setAvatarSrc] = useState("https://placehold.co/100x100.png");
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const storedResults = localStorage.getItem("quizResults");
         if (storedResults) {
             setResults(JSON.parse(storedResults).reverse());
         }
+        
+        const storedAvatar = localStorage.getItem("userAvatar");
+        if (storedAvatar) {
+            setAvatarSrc(storedAvatar);
+        }
+
         setLoading(false);
     }, []);
 
     const totalQuizzes = results.length;
     const totalScore = results.reduce((acc, r) => acc + r.score, 0);
+
+    const handleAvatarClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target?.result as string;
+                if(dataUrl) {
+                    setAvatarSrc(dataUrl);
+                    localStorage.setItem("userAvatar", dataUrl);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
 
     const ProfileSkeleton = () => (
       <div className="space-y-8">
@@ -51,10 +80,22 @@ export default function ProfilePage() {
       <AppShell>
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <Avatar className="h-24 w-24 border-4 border-accent">
-                    <AvatarImage data-ai-hint="profile avatar" src="https://placehold.co/100x100.png" alt="User Avatar" />
-                    <AvatarFallback>U</AvatarFallback>
-                </Avatar>
+                <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
+                    <Avatar className="h-24 w-24 border-4 border-accent">
+                        <AvatarImage data-ai-hint="profile avatar" src={avatarSrc} alt="User Avatar" />
+                        <AvatarFallback>U</AvatarFallback>
+                    </Avatar>
+                    <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Edit2 className="h-8 w-8 text-white" />
+                    </div>
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                  accept="image/*" 
+                />
                 <div className="flex-1">
                     <h1 className="text-3xl font-bold font-headline">Quiz Master</h1>
                     <p className="text-muted-foreground">Your quizzing journey and achievements.</p>
