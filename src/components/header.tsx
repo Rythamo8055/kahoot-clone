@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Home, PlusSquare, User, Bot } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -35,6 +36,9 @@ export default function Header() {
             </Link>
           ))}
         </nav>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );
