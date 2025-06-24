@@ -79,6 +79,10 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-image: url('https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/dynamic-wallpapers/AnimeRoomBoard/ign_AnimeRoomBoard-2.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
   }
 }
