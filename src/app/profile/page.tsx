@@ -78,7 +78,7 @@ export default function ProfilePage() {
 
     return (
       <AppShell>
-        <div className="space-y-8 px-2 md:px-0">
+        <div className="space-y-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
                     <Avatar className="h-24 w-24 border-4 border-accent">

@@ -39,7 +39,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 px-2 md:px-0">
+      <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">My Quizzes</h1>

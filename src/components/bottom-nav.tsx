@@ -30,7 +30,7 @@ export default function BottomNav() {
   const { setTheme } = useTheme();
 
   return (
-    <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
       <TooltipProvider delayDuration={0}>
         <div className="flex h-16 items-center justify-center gap-1 rounded-full border bg-card p-2 shadow-lg backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
           {navLinks.map((link) => (
@@ -59,7 +59,7 @@ export default function BottomNav() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full">
+                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full transition-colors hover:bg-accent hover:text-accent-foreground">
                     <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                     <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                     <span className="sr-only">Toggle theme</span>

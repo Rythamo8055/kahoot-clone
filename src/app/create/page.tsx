@@ -104,7 +104,7 @@ export default function CreateQuizPage() {
 
   return (
     <AppShell>
-      <div className="max-w-4xl mx-auto space-y-8 px-2 md:px-0">
+      <div className="max-w-4xl mx-auto space-y-8">
         <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center">
