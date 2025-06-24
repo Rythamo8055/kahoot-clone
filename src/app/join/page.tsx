@@ -39,7 +39,7 @@ export default function JoinPage() {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-secondary/50">
+        <div className="flex flex-col items-center justify-center min-h-screen">
              <Link href="/" className="absolute top-6 left-6 flex items-center space-x-2">
                 <Bot className="h-6 w-6 text-primary" />
                 <span className="font-bold sm:inline-block font-headline text-foreground">QuizAI</span>

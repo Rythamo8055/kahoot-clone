@@ -87,7 +87,7 @@ export default function PlayQuizPage() {
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-secondary/50 p-4 sm:p-6 md:p-8">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 md:p-8">
       <Card className="w-full max-w-3xl shadow-2xl">
         <CardHeader>
           <div className="flex justify-between items-center mb-4">

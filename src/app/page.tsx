@@ -17,7 +17,7 @@ export default function Home() {
       <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
         <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:6rem_4rem] opacity-10"></div>
         
-        <div className="bg-accent/50 text-accent-foreground/80 font-semibold text-sm rounded-full px-4 py-1 mb-4 inline-flex items-center shadow-sm">
+        <div className="bg-card text-accent-foreground font-semibold text-sm rounded-full px-4 py-1 mb-4 inline-flex items-center shadow-sm">
           <Sparkles className="w-4 h-4 mr-2 text-primary" />
           Powered by Generative AI
         </div>

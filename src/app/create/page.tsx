@@ -104,12 +104,14 @@ export default function CreateQuizPage() {
 
   return (
     <AppShell>
-      <div className="max-w-4xl mx-auto space-y-8">
-        <Card className="bg-accent/30 border-primary/20">
+      <div className="max-w-4xl mx-auto space-y-8 px-4">
+        <Card className="bg-card border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center">
               <Sparkles className="h-6 w-6 mr-3 text-primary" />
-              Generate with AI
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">
+                Generate with AI
+              </span>
             </CardTitle>
             <CardDescription>
               Provide a topic, and we'll create a quiz for you. You can review and edit it before saving.
@@ -134,7 +136,7 @@ export default function CreateQuizPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle>Quiz Details</CardTitle>
+                <CardTitle className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField control={form.control} name="title" render={({ field }) => (
@@ -147,7 +149,7 @@ export default function CreateQuizPage() {
             </Card>
             
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold font-headline">Questions</h2>
+              <h2 className="text-2xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Questions</h2>
               {fields.map((field, index) => (
                 <Card key={field.id} className="relative pt-6">
                   <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={() => fields.length > 1 ? remove(index) : null}>

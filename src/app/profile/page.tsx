@@ -78,7 +78,7 @@ export default function ProfilePage() {
 
     return (
       <AppShell>
-        <div className="space-y-8">
+        <div className="space-y-8 px-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
                     <Avatar className="h-24 w-24 border-4 border-accent">
@@ -97,7 +97,7 @@ export default function ProfilePage() {
                   accept="image/*" 
                 />
                 <div className="flex-1">
-                    <h1 className="text-3xl font-bold font-headline">Quiz Master</h1>
+                    <h1 className="text-3xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz Master</h1>
                     <p className="text-muted-foreground">Your quizzing journey and achievements.</p>
                      <div className="flex items-center gap-6 mt-2 text-sm text-foreground">
                         <div className="flex items-center gap-2">
@@ -114,7 +114,7 @@ export default function ProfilePage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Quiz History</CardTitle>
+                    <CardTitle className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz History</CardTitle>
                     <CardDescription>Your past quiz performances.</CardDescription>
                 </CardHeader>
                 <CardContent>

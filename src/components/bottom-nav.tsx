@@ -39,8 +39,8 @@ export default function BottomNav() {
                 <Link
                   href={link.href}
                   className={cn(
-                    "flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary",
-                    pathname === link.href && "bg-primary/10 text-primary"
+                    "flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                    pathname === link.href && "bg-accent text-accent-foreground"
                   )}
                 >
                   <link.icon className="h-5 w-5" />
