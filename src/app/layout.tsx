@@ -7,6 +7,9 @@ import BackgroundProvider from "@/components/background-provider";
 export const metadata: Metadata = {
   title: "QuizAI",
   description: "Create and play quizzes with the power of AI",
+  icons: {
+    icon: "https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/Minimal-Nord.png",
+  },
 };
 
 export default function RootLayout({
