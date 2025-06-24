@@ -2,9 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, PlusSquare, User } from "lucide-react";
+import { Home, PlusSquare, User, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const navLinks = [
   { href: "/dashboard", icon: Home, label: "Home" },
@@ -14,29 +27,64 @@ const navLinks = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { setTheme } = useTheme();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border shadow-[0_-1px_4px_rgba(0,0,0,0.05)]">
-      <div className="mx-auto flex h-full max-w-md items-center justify-around px-4">
-        {navLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-              "flex flex-col items-center justify-center space-y-1 transition-colors w-16",
-              pathname === link.href
-                ? "text-primary"
-                : "text-muted-foreground hover:text-primary"
-            )}
-          >
-            <link.icon className="h-6 w-6" />
-            <span className="text-xs font-medium">{link.label}</span>
-          </Link>
-        ))}
-        <div className="w-16 flex items-center justify-center">
-          <ThemeToggle />
+    <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+      <TooltipProvider delayDuration={0}>
+        <div className="flex h-16 items-center justify-center gap-1 rounded-full border bg-card p-2 shadow-lg backdrop-blur-sm supports-[backdrop-filter]:bg-card/80">
+          {navLinks.map((link) => (
+            <Tooltip key={link.href}>
+              <TooltipTrigger asChild>
+                <Link
+                  href={link.href}
+                  className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary",
+                    pathname === link.href && "bg-primary/10 text-primary"
+                  )}
+                >
+                  <link.icon className="h-5 w-5" />
+                  <span className="sr-only">{link.label}</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>{link.label}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+          
+          <div className="mx-1 h-8 w-px bg-border" />
+
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full">
+                    <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Toggle theme</span>
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p>Toggle Theme</p>
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="center" side="top" className="mb-1">
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                Light
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                Dark
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")}>
+                System
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
         </div>
-      </div>
+      </TooltipProvider>
     </nav>
   );
 }
