@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, PlusSquare, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navLinks = [
   { href: "/dashboard", icon: Home, label: "Home" },
@@ -32,6 +33,9 @@ export default function BottomNav() {
             <span className="text-xs font-medium">{link.label}</span>
           </Link>
         ))}
+        <div className="w-16 flex items-center justify-center">
+          <ThemeToggle />
+        </div>
       </div>
     </nav>
   );
