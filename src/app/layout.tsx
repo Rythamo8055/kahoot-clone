@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
+import BackgroundProvider from "@/components/background-provider";
 
 export const metadata: Metadata = {
   title: "QuizAI",
@@ -30,8 +31,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <BackgroundProvider>
+            {children}
+            <Toaster />
+          </BackgroundProvider>
         </ThemeProvider>
       </body>
     </html>
