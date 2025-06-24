@@ -1,0 +1,106 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import AppShell from "@/components/app-shell";
+import type { QuizResult } from "@/lib/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Trophy, Calendar, CheckSquare } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function ProfilePage() {
+    const [results, setResults] = useState<QuizResult[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const storedResults = localStorage.getItem("quizResults");
+        if (storedResults) {
+            setResults(JSON.parse(storedResults).reverse());
+        }
+        setLoading(false);
+    }, []);
+
+    const totalQuizzes = results.length;
+    const totalScore = results.reduce((acc, r) => acc + r.score, 0);
+
+    const ProfileSkeleton = () => (
+      <div className="space-y-8">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-24 w-24 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-5 w-48" />
+          </div>
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-40" />
+            <Skeleton className="h-4 w-56" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+
+    if (loading) return <AppShell><ProfileSkeleton /></AppShell>;
+
+    return (
+      <AppShell>
+        <div className="space-y-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <Avatar className="h-24 w-24 border-4 border-accent">
+                    <AvatarImage data-ai-hint="profile avatar" src="https://placehold.co/100x100.png" alt="User Avatar" />
+                    <AvatarFallback>U</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                    <h1 className="text-3xl font-bold font-headline">Quiz Master</h1>
+                    <p className="text-muted-foreground">Your quizzing journey and achievements.</p>
+                     <div className="flex items-center gap-6 mt-2 text-sm text-foreground">
+                        <div className="flex items-center gap-2">
+                            <CheckSquare className="h-5 w-5 text-primary" />
+                            <span><span className="font-bold">{totalQuizzes}</span> Quizzes Taken</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Trophy className="h-5 w-5 text-primary" />
+                            <span><span className="font-bold">{totalScore}</span> Total Points</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Quiz History</CardTitle>
+                    <CardDescription>Your past quiz performances.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {results.length > 0 ? (
+                        <ul className="space-y-4">
+                            {results.map((result, index) => (
+                                <li key={index} className="flex justify-between items-center p-4 border rounded-lg hover:bg-card transition-colors">
+                                    <div>
+                                        <p className="font-semibold">{result.quizTitle || `Quiz ID: ${result.quizId}`}</p>
+                                        <div className="flex items-center text-sm text-muted-foreground mt-1">
+                                            <Calendar className="h-4 w-4 mr-2" />
+                                            <span>{new Date(result.date).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center font-bold text-primary text-lg">
+                                        <Trophy className="h-5 w-5 mr-2" />
+                                        <span>{result.score} pts</span>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-center text-muted-foreground py-10">No quizzes played yet. Go play one!</p>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+      </AppShell>
+    );
+}
