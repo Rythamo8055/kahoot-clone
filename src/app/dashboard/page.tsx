@@ -10,9 +10,10 @@ import { FilePlus, Play, BarChart2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/auth-provider";
 
 export default function DashboardPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -20,14 +21,41 @@ export default function DashboardPage() {
   const [isCreatingSession, setIsCreatingSession] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
-    const storedQuizzes = localStorage.getItem("quizzes");
-    if (storedQuizzes) {
-      setQuizzes(JSON.parse(storedQuizzes).reverse());
+    if (!user) {
+        setLoading(false);
+        return;
+    };
+
+    const fetchQuizzes = async () => {
+        setLoading(true);
+        try {
+            const quizzesRef = collection(db, "quizzes");
+            const q = query(quizzesRef, where("userId", "==", user.uid), orderBy("createdAt", "desc"));
+            
+            const querySnapshot = await getDocs(q);
+            const userQuizzes = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as Quiz));
+            
+            setQuizzes(userQuizzes);
+        } catch (error) {
+            console.error("Error fetching quizzes:", error);
+            toast({
+                title: "Failed to load quizzes",
+                description: "Could not fetch your quizzes from the database.",
+                variant: "destructive"
+            })
+        } finally {
+            setLoading(false);
+        }
     }
-    setLoading(false);
-  }, []);
+
+    fetchQuizzes();
+  }, [user, toast]);
   
   const handleHostQuiz = async (quiz: Quiz) => {
     setIsCreatingSession(quiz.id);

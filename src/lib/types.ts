@@ -10,6 +10,8 @@ export interface Quiz {
   title: string;
   description: string;
   questions: Question[];
+  userId: string;
+  createdAt?: any;
 }
 
 export interface QuizResult {

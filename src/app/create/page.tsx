@@ -16,8 +16,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sparkles, Trash2, Plus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import type { Quiz } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth-provider";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 const questionSchema = z.object({
   question: z.string().min(1, "Question cannot be empty"),
@@ -36,8 +37,10 @@ type QuizFormData = z.infer<typeof quizSchema>;
 export default function CreateQuizPage() {
   const [aiTopic, setAiTopic] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useAuth();
 
   const form = useForm<QuizFormData>({
     resolver: zodResolver(quizSchema),
@@ -89,18 +92,36 @@ export default function CreateQuizPage() {
     }
   };
   
-  const onSubmit = (data: QuizFormData) => {
-    const newQuiz: Quiz = {
-      id: new Date().getTime().toString(),
-      ...data,
-      questions: data.questions.map(q => ({...q, id: Math.random().toString()}))
+  const onSubmit = async (data: QuizFormData) => {
+    if (!user) {
+      toast({ title: "Authentication Error", description: "You must be signed in to save a quiz.", variant: "destructive" });
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    const quizData = {
+      title: data.title,
+      description: data.description || "",
+      questions: data.questions.map(q => ({...q, id: Math.random().toString()})),
+      userId: user.uid,
+      createdAt: serverTimestamp()
     };
     
-    const existingQuizzes: Quiz[] = JSON.parse(localStorage.getItem("quizzes") || "[]");
-    localStorage.setItem("quizzes", JSON.stringify([...existingQuizzes, newQuiz]));
-
-    toast({ title: "Quiz Saved!", description: "Your new quiz has been saved successfully." });
-    router.push("/dashboard");
+    try {
+        await addDoc(collection(db, "quizzes"), quizData);
+        toast({ title: "Quiz Saved!", description: "Your new quiz has been saved successfully." });
+        router.push("/dashboard");
+    } catch (error) {
+        console.error("Error saving quiz: ", error);
+        toast({
+            title: "Failed to save quiz",
+            description: "An error occurred while saving. Please try again.",
+            variant: "destructive"
+        });
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   return (
@@ -191,7 +212,10 @@ export default function CreateQuizPage() {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" size="lg">Save Quiz</Button>
+              <Button type="submit" size="lg" disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Quiz
+              </Button>
             </div>
           </form>
         </Form>

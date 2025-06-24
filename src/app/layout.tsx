@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import BackgroundProvider from "@/components/background-provider";
+import AuthProvider from "@/components/auth-provider";
 
 export const metadata: Metadata = {
   title: "QuizAI",
@@ -36,10 +37,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <BackgroundProvider>
-            {children}
-            <Toaster />
-          </BackgroundProvider>
+          <AuthProvider>
+            <BackgroundProvider>
+              {children}
+              <Toaster />
+            </BackgroundProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
