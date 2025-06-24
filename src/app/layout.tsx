@@ -7,6 +7,7 @@ import BackgroundProvider from "@/components/background-provider";
 export const metadata: Metadata = {
   title: "QuizAI",
   description: "Create and play quizzes with the power of AI",
+  manifest: "/manifest.json",
   icons: {
     icon: "https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/Minimal-Nord.png",
   },
@@ -26,6 +27,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
           rel="stylesheet"
         />
+        <meta name="theme-color" content="#23272f" />
       </head>
       <body className="font-body antialiased">
         <ThemeProvider

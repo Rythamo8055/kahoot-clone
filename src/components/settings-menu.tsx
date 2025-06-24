@@ -15,18 +15,34 @@ import {
 } from "@/components/ui/dialog";
 import {
   Tooltip,
-  TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Settings, Moon, Sun, Monitor, Upload, Link as LinkIcon, Trash2 } from "lucide-react";
+import { Settings, Moon, Sun, Monitor, Upload, Link as LinkIcon, Trash2, BellDot } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+// Helper function to convert VAPID key
+function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
 
 export default function SettingsMenu() {
   const { setTheme } = useTheme();
   const [imageUrl, setImageUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -77,6 +93,59 @@ export default function SettingsMenu() {
   
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+  
+  const handleEnableNotifications = async () => {
+    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+        toast({
+            title: "VAPID Key Missing",
+            description: "The application is not configured for push notifications.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    setIsSubscribing(true);
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      try {
+        await Notification.requestPermission();
+        const swRegistration = await navigator.serviceWorker.ready;
+        const subscription = await swRegistration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
+        });
+
+        console.log('User subscription:', subscription);
+        
+        // TODO: Send subscription to your backend server
+        // The `subscription` object should be sent to and stored on your server
+        // to send push notifications to this user later.
+        // For example:
+        // await fetch('/api/subscribe', {
+        //   method: 'POST',
+        //   body: JSON.stringify(subscription),
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //   },
+        // });
+
+        toast({ title: "Subscribed!", description: "You will now receive push notifications." });
+      } catch (error) {
+        console.error('Failed to subscribe the user: ', error);
+        let description = "An unknown error occurred.";
+        if(error instanceof Error) {
+            if (error.name === 'NotAllowedError') {
+                description = "You have denied push notification permissions.";
+            } else {
+                description = error.message;
+            }
+        }
+        toast({ title: "Subscription Failed", description, variant: "destructive" });
+      }
+    } else {
+        toast({ title: "Not Supported", description: "Push notifications are not supported by your browser.", variant: "destructive" });
+    }
+    setIsSubscribing(false);
   };
 
   return (
@@ -135,6 +204,15 @@ export default function SettingsMenu() {
                     <Trash2 />
                 </Button>
             </div>
+          </div>
+          <div className="space-y-3">
+            <Label>Notifications</Label>
+            <Button variant="outline" className="w-full" onClick={handleEnableNotifications} disabled={isSubscribing}>
+                <BellDot className="mr-2"/> Enable Push Notifications
+            </Button>
+            <p className="text-xs text-muted-foreground">
+                Get notified when there are new quizzes or updates.
+            </p>
           </div>
         </div>
       </DialogContent>
