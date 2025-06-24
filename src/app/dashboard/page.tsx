@@ -22,7 +22,7 @@ export default function DashboardPage() {
   }, []);
 
   const QuizSkeleton = () => (
-    <Card>
+    <Card className="bg-card/80 backdrop-blur-sm">
       <CardHeader>
         <Skeleton className="h-6 w-3/4" />
         <Skeleton className="h-4 w-1/2" />
@@ -39,7 +39,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="space-y-8 px-4">
+      <div className="space-y-8 px-2 md:px-0">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">My Quizzes</h1>
@@ -62,7 +62,7 @@ export default function DashboardPage() {
         ) : quizzes.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {quizzes.map((quiz) => (
-              <Card key={quiz.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
+              <Card key={quiz.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300 bg-card/80 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="truncate">{quiz.title}</CardTitle>
                   <CardDescription className="h-10 text-ellipsis overflow-hidden">
@@ -90,7 +90,7 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20 border-2 border-dashed rounded-lg bg-card">
+          <div className="text-center py-20 border-2 border-dashed rounded-lg bg-card/80 backdrop-blur-sm">
             <h3 className="text-xl font-semibold">No Quizzes Yet!</h3>
             <p className="text-muted-foreground my-2">Click the button below to create your first quiz.</p>
             <Button asChild className="mt-4">

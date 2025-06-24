@@ -61,7 +61,7 @@ export default function ProfilePage() {
             <Skeleton className="h-5 w-48" />
           </div>
         </div>
-        <Card>
+        <Card className="bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <Skeleton className="h-7 w-40" />
             <Skeleton className="h-4 w-56" />
@@ -78,7 +78,7 @@ export default function ProfilePage() {
 
     return (
       <AppShell>
-        <div className="space-y-8 px-4">
+        <div className="space-y-8 px-2 md:px-0">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
                     <Avatar className="h-24 w-24 border-4 border-accent">
@@ -112,7 +112,7 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            <Card>
+            <Card className="bg-card/80 backdrop-blur-sm">
                 <CardHeader>
                     <CardTitle className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz History</CardTitle>
                     <CardDescription>Your past quiz performances.</CardDescription>
@@ -121,7 +121,7 @@ export default function ProfilePage() {
                     {results.length > 0 ? (
                         <ul className="space-y-4">
                             {results.map((result, index) => (
-                                <li key={index} className="flex justify-between items-center p-4 border rounded-lg hover:bg-card transition-colors">
+                                <li key={index} className="flex justify-between items-center p-4 border rounded-lg hover:bg-card/80 transition-colors backdrop-blur-sm">
                                     <div>
                                         <p className="font-semibold">{result.quizTitle || `Quiz ID: ${result.quizId}`}</p>
                                         <div className="flex items-center text-sm text-muted-foreground mt-1">
