@@ -61,7 +61,7 @@ export default function ProfilePage() {
             <Skeleton className="h-5 w-48" />
           </div>
         </div>
-        <Card className="bg-card/60 backdrop-blur-sm md:bg-card">
+        <Card className="bg-card/60 backdrop-blur-sm">
           <CardHeader>
             <Skeleton className="h-7 w-40" />
             <Skeleton className="h-4 w-56" />
@@ -112,7 +112,7 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            <Card className="bg-card/60 backdrop-blur-sm md:bg-card">
+            <Card className="bg-card/60 backdrop-blur-sm">
                 <CardHeader>
                     <CardTitle className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz History</CardTitle>
                     <CardDescription>Your past quiz performances.</CardDescription>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useSearchParams, useParams, useRouter } from "next/navigation";
@@ -43,7 +44,7 @@ export default function ResultsPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-md text-center shadow-2xl bg-card/60 backdrop-blur-sm md:bg-card">
+      <Card className="w-full max-w-md text-center shadow-2xl bg-card/60 backdrop-blur-sm">
         <CardHeader>
           <div className="mx-auto bg-accent rounded-full p-4 w-fit mb-4">
             <Award className="h-12 w-12 text-accent-foreground" />

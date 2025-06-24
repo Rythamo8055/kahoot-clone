@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -88,7 +89,7 @@ export default function PlayQuizPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-3xl shadow-2xl bg-card/60 backdrop-blur-sm md:bg-card">
+      <Card className="w-full max-w-3xl shadow-2xl bg-card/60 backdrop-blur-sm">
         <CardHeader>
           <div className="flex justify-between items-center mb-4">
             <p className="text-sm font-medium text-muted-foreground">Question {currentQuestionIndex + 1} of {quiz.questions.length}</p>

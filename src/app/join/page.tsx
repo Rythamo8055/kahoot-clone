@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -44,7 +45,7 @@ export default function JoinPage() {
                 <Bot className="h-6 w-6 text-primary" />
                 <span className="font-bold sm:inline-block font-headline text-foreground">QuizAI</span>
             </Link>
-            <Card className="w-full max-w-sm shadow-2xl bg-card/60 backdrop-blur-sm md:bg-card">
+            <Card className="w-full max-w-sm shadow-2xl bg-card/60 backdrop-blur-sm">
                 <CardHeader className="text-center">
                     <CardTitle className="text-2xl font-headline">Join a Game</CardTitle>
                     <CardDescription>Enter the code provided by the host.</CardDescription>

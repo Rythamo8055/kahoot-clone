@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -22,7 +23,7 @@ export default function DashboardPage() {
   }, []);
 
   const QuizSkeleton = () => (
-    <Card className="bg-card/60 backdrop-blur-sm md:bg-card">
+    <Card className="bg-card/60 backdrop-blur-sm">
       <CardHeader>
         <Skeleton className="h-6 w-3/4" />
         <Skeleton className="h-4 w-1/2" />
@@ -62,7 +63,7 @@ export default function DashboardPage() {
         ) : quizzes.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {quizzes.map((quiz) => (
-              <Card key={quiz.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300 bg-card/60 backdrop-blur-sm md:bg-card">
+              <Card key={quiz.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300 bg-card/60 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="truncate">{quiz.title}</CardTitle>
                   <CardDescription className="h-10 text-ellipsis overflow-hidden">
@@ -90,7 +91,7 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20 border-2 border-dashed rounded-lg bg-card/60 backdrop-blur-sm md:bg-card">
+          <div className="text-center py-20 border-2 border-dashed rounded-lg bg-card/60 backdrop-blur-sm">
             <h3 className="text-xl font-semibold">No Quizzes Yet!</h3>
             <p className="text-muted-foreground my-2">Click the button below to create your first quiz.</p>
             <Button asChild className="mt-4">
