@@ -2,7 +2,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, type User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, type User, RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   emailSignUp: (name: string, email: string, pass: string) => Promise<void>;
   emailSignIn: (email: string, pass: string) => Promise<void>;
+  signInWithPhone: (phoneNumber: string) => Promise<ConfirmationResult | null>;
+  verifyOtp: (confirmationResult: ConfirmationResult, otp: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -41,6 +43,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const handleAuthSuccess = (message: string) => {
+    router.push('/dashboard');
+    toast({ title: message });
+  }
+
   const handleAuthError = (error: any) => {
     console.error("Firebase Auth Error:", error);
     let description = "An unexpected error occurred.";
@@ -58,6 +65,15 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
             case 'auth/invalid-credential':
                  description = 'The email or password you entered is incorrect.';
                  break;
+            case 'auth/invalid-phone-number':
+                 description = 'The phone number is not valid.';
+                 break;
+            case 'auth/too-many-requests':
+                 description = 'Too many requests. Please try again later.';
+                 break;
+            case 'auth/invalid-verification-code':
+                 description = 'The verification code is incorrect.';
+                 break;
             default:
                 description = error.message;
         }
@@ -69,8 +85,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      router.push('/dashboard');
-      toast({ title: 'Signed in successfully!' });
+      handleAuthSuccess('Signed in successfully!');
     } catch (error) {
       handleAuthError(error);
     }
@@ -80,10 +95,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(userCredential.user, { displayName: name });
-      // Manually update the user state as onAuthStateChanged might be slow
-      setUser(userCredential.user);
-      router.push('/dashboard');
-      toast({ title: 'Account created successfully!' });
+      setUser(userCredential.user); // Manually update state
+      handleAuthSuccess('Account created successfully!');
     } catch (error) {
       handleAuthError(error);
     }
@@ -92,8 +105,31 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const emailSignIn = async (email: string, pass: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      router.push('/dashboard');
-      toast({ title: 'Signed in successfully!' });
+      handleAuthSuccess('Signed in successfully!');
+    } catch (error) {
+      handleAuthError(error);
+    }
+  };
+
+  const signInWithPhone = async (phoneNumber: string): Promise<ConfirmationResult | null> => {
+    try {
+      // It's important that the reCAPTCHA is invisible and rendered.
+      const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible'
+      });
+      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
+      toast({ title: 'Verification code sent!' });
+      return confirmationResult;
+    } catch (error) {
+      handleAuthError(error);
+      return null;
+    }
+  };
+
+  const verifyOtp = async (confirmationResult: ConfirmationResult, otp: string) => {
+    try {
+      await confirmationResult.confirm(otp);
+      handleAuthSuccess('Signed in successfully!');
     } catch (error) {
       handleAuthError(error);
     }
@@ -119,7 +155,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, emailSignUp, emailSignIn, logout }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, emailSignUp, emailSignIn, signInWithPhone, verifyOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );

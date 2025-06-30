@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bot, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { Separator } from "@/components/ui/separator";
+import type { ConfirmationResult } from "firebase/auth";
 
 const signInSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -24,6 +25,14 @@ const signUpSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const phoneSchema = z.object({
+    phone: z.string().min(10, "Please enter a valid phone number with country code."),
+});
+
+const otpSchema = z.object({
+    otp: z.string().length(6, "Verification code must be 6 digits."),
 });
 
 const GoogleIcon = () => (
@@ -37,10 +46,13 @@ const GoogleIcon = () => (
 );
 
 export default function LoginPage() {
-  const { signInWithGoogle, emailSignIn, emailSignUp } = useAuth();
+  const { signInWithGoogle, emailSignIn, emailSignUp, signInWithPhone, verifyOtp } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
   const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   const signInForm = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
@@ -50,6 +62,16 @@ export default function LoginPage() {
   const signUpForm = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
     defaultValues: { name: "", email: "", password: "" },
+  });
+
+  const phoneForm = useForm<z.infer<typeof phoneSchema>>({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { phone: "" },
+  });
+
+  const otpForm = useForm<z.infer<typeof otpSchema>>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { otp: "" },
   });
 
   const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
@@ -68,17 +90,37 @@ export default function LoginPage() {
     setIsGoogleSigningIn(true);
     await signInWithGoogle();
     setIsGoogleSigningIn(false);
+  };
+
+  const handlePhoneSignIn = async (values: z.infer<typeof phoneSchema>) => {
+    setIsSendingOtp(true);
+    const result = await signInWithPhone(values.phone);
+    if (result) {
+        setConfirmationResult(result);
+    }
+    setIsSendingOtp(false);
+  };
+
+  const handleOtpVerify = async (values: z.infer<typeof otpSchema>) => {
+    if (!confirmationResult) return;
+    setIsVerifyingOtp(true);
+    await verifyOtp(confirmationResult, values.otp);
+    setIsVerifyingOtp(false);
   }
+
+  const isLoading = isSigningIn || isSigningUp || isGoogleSigningIn || isSendingOtp || isVerifyingOtp;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
+      <div id="recaptcha-container" className="fixed bottom-0 right-0"></div>
       <Link href="/" className="absolute top-6 left-6 flex items-center space-x-2">
         <Bot className="h-6 w-6 text-primary" />
         <span className="font-bold sm:inline-block font-headline text-foreground">QuizAI</span>
       </Link>
       <Tabs defaultValue="signin" className="w-full max-w-sm">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="signin">Sign In</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="signin">Email</TabsTrigger>
+          <TabsTrigger value="phone">Phone</TabsTrigger>
           <TabsTrigger value="signup">Sign Up</TabsTrigger>
         </TabsList>
         <TabsContent value="signin">
@@ -88,7 +130,7 @@ export default function LoginPage() {
               <CardDescription>Sign in to continue to your dashboard.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSigningIn || isSigningUp || isGoogleSigningIn}>
+                <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
                     {isGoogleSigningIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
                     Sign in with Google
                 </Button>
@@ -100,17 +142,65 @@ export default function LoginPage() {
               <Form {...signInForm}>
                 <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">
                   <FormField control={signInForm.control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="m@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="m@example.com" {...field} disabled={isLoading} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={signInForm.control} name="password" render={({ field }) => (
-                    <FormItem><FormLabel>Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} disabled={isLoading} /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <Button type="submit" className="w-full" disabled={isSigningIn || isSigningUp}>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
                     {isSigningIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Sign In
                   </Button>
                 </form>
               </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="phone">
+          <Card className="bg-card/60 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-2xl">Sign In with Phone</CardTitle>
+              <CardDescription>
+                {confirmationResult ? "Enter the code we sent you." : "We'll send you a verification code."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {!confirmationResult ? (
+                    <Form {...phoneForm}>
+                        <form onSubmit={phoneForm.handleSubmit(handlePhoneSignIn)} className="space-y-4">
+                            <FormField control={phoneForm.control} name="phone" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Phone Number</FormLabel>
+                                    <FormControl><Input placeholder="+1 555-555-5555" {...field} disabled={isLoading} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <Button type="submit" className="w-full" disabled={isLoading}>
+                                {isSendingOtp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Send Code
+                            </Button>
+                        </form>
+                    </Form>
+                ) : (
+                    <Form {...otpForm}>
+                        <form onSubmit={otpForm.handleSubmit(handleOtpVerify)} className="space-y-4">
+                            <FormField control={otpForm.control} name="otp" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Verification Code</FormLabel>
+                                    <FormControl><Input placeholder="123456" {...field} disabled={isLoading} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                             <Button type="submit" className="w-full" disabled={isLoading}>
+                                {isVerifyingOtp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Verify & Sign In
+                            </Button>
+                             <Button variant="link" size="sm" onClick={() => setConfirmationResult(null)} disabled={isLoading}>
+                                Back to phone number entry
+                            </Button>
+                        </form>
+                    </Form>
+                )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -121,7 +211,7 @@ export default function LoginPage() {
               <CardDescription>Enter your details below to create your account.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-               <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSigningIn || isSigningUp || isGoogleSigningIn}>
+               <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading}>
                     {isGoogleSigningIn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon />}
                     Sign up with Google
                 </Button>
@@ -133,15 +223,15 @@ export default function LoginPage() {
               <Form {...signUpForm}>
                 <form onSubmit={signUpForm.handleSubmit(handleSignUp)} className="space-y-4">
                   <FormField control={signUpForm.control} name="name" render={({ field }) => (
-                    <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} disabled={isLoading}/></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={signUpForm.control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="m@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input placeholder="m@example.com" {...field} disabled={isLoading} /></FormControl><FormMessage /></FormItem>
                   )} />
                   <FormField control={signUpForm.control} name="password" render={({ field }) => (
-                    <FormItem><FormLabel>Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Password</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} disabled={isLoading} /></FormControl><FormMessage /></FormItem>
                   )} />
-                  <Button type="submit" className="w-full" disabled={isSigningIn || isSigningUp}>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
                     {isSigningUp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Create Account
                   </Button>
