@@ -1,104 +1,81 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "@/components/app-shell";
-import type { QuizResult } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, Calendar, CheckSquare, Edit2 } from "lucide-react";
+import { Trophy, CheckSquare, LogIn, LogOut } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/components/auth-provider";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function ProfilePage() {
-    const [results, setResults] = useState<QuizResult[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [avatarSrc, setAvatarSrc] = useState("https://placehold.co/100x100.png");
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        const storedResults = localStorage.getItem("quizResults");
-        if (storedResults) {
-            setResults(JSON.parse(storedResults).reverse());
-        }
-        
-        const storedAvatar = localStorage.getItem("userAvatar");
-        if (storedAvatar) {
-            setAvatarSrc(storedAvatar);
-        }
-
-        setLoading(false);
-    }, []);
-
-    const totalQuizzes = results.length;
-    const totalScore = results.reduce((acc, r) => acc + r.score, 0);
-
-    const handleAvatarClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const dataUrl = e.target?.result as string;
-                if(dataUrl) {
-                    setAvatarSrc(dataUrl);
-                    localStorage.setItem("userAvatar", dataUrl);
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
+    const { user, loading, logout } = useAuth();
+    
+    // Note: Quiz history is no longer stored in localStorage.
+    // This would need to be fetched from Firestore based on the user's ID.
+    const totalQuizzes = 0;
+    const totalScore = 0;
 
     const ProfileSkeleton = () => (
-      <div className="space-y-8">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-24 w-24 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-32" />
-            <Skeleton className="h-5 w-48" />
-          </div>
+      <AppShell>
+        <div className="space-y-8">
+            <div className="flex items-center gap-4">
+            <Skeleton className="h-24 w-24 rounded-full" />
+            <div className="space-y-2">
+                <Skeleton className="h-8 w-32" />
+                <Skeleton className="h-5 w-48" />
+            </div>
+            </div>
+            <Card className="bg-card/60 backdrop-blur-sm">
+            <CardHeader>
+                <Skeleton className="h-7 w-40" />
+                <Skeleton className="h-4 w-56" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-16 w-full rounded-lg" />
+            </CardContent>
+            </Card>
         </div>
-        <Card className="bg-card/60 backdrop-blur-sm">
-          <CardHeader>
-            <Skeleton className="h-7 w-40" />
-            <Skeleton className="h-4 w-56" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Skeleton className="h-16 w-full rounded-lg" />
-            <Skeleton className="h-16 w-full rounded-lg" />
-          </CardContent>
-        </Card>
-      </div>
+      </AppShell>
     );
 
-    if (loading) return <AppShell><ProfileSkeleton /></AppShell>;
+    if (loading) {
+        return <ProfileSkeleton />;
+    }
+
+    if (!user) {
+        return (
+            <AppShell>
+                <div className="text-center py-20 border-2 border-dashed rounded-lg bg-card/60 backdrop-blur-sm">
+                    <h3 className="text-xl font-semibold">You are not logged in.</h3>
+                    <p className="text-muted-foreground my-2">Please log in to view your profile and stats.</p>
+                    <Button asChild className="mt-4">
+                        <Link href="/login">
+                            <LogIn className="mr-2 h-4 w-4" />
+                            Go to Login
+                        </Link>
+                    </Button>
+                </div>
+            </AppShell>
+        )
+    }
 
     return (
       <AppShell>
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="relative group cursor-pointer" onClick={handleAvatarClick}>
-                    <Avatar className="h-24 w-24 border-4 border-accent">
-                        <AvatarImage data-ai-hint="profile avatar" src={avatarSrc} alt="User Avatar" />
-                        <AvatarFallback>U</AvatarFallback>
-                    </Avatar>
-                    <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Edit2 className="h-8 w-8 text-white" />
-                    </div>
-                </div>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  className="hidden" 
-                  accept="image/*" 
-                />
+                <Avatar className="h-24 w-24 border-4 border-accent">
+                    <AvatarImage src={user.photoURL ?? ''} data-ai-hint="profile avatar" alt={user.displayName ?? 'User'} />
+                    <AvatarFallback>{user.displayName?.charAt(0).toUpperCase() ?? user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                
                 <div className="flex-1">
-                    <h1 className="text-3xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz Master</h1>
-                    <p className="text-muted-foreground">Your quizzing journey and achievements.</p>
+                    <h1 className="text-3xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">{user.displayName ?? 'Quiz Master'}</h1>
+                    <p className="text-muted-foreground">{user.email}</p>
                      <div className="flex items-center gap-6 mt-2 text-sm text-foreground">
                         <div className="flex items-center gap-2">
                             <CheckSquare className="h-5 w-5 text-primary" />
@@ -110,6 +87,10 @@ export default function ProfilePage() {
                         </div>
                     </div>
                 </div>
+                 <Button variant="outline" onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4"/>
+                    Sign Out
+                 </Button>
             </div>
 
             <Card className="bg-card/60 backdrop-blur-sm">
@@ -118,27 +99,7 @@ export default function ProfilePage() {
                     <CardDescription>Your past quiz performances.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {results.length > 0 ? (
-                        <ul className="space-y-4">
-                            {results.map((result, index) => (
-                                <li key={index} className="flex justify-between items-center p-4 border rounded-lg hover:bg-accent/20 transition-colors">
-                                    <div>
-                                        <p className="font-semibold">{result.quizTitle || `Quiz ID: ${result.quizId}`}</p>
-                                        <div className="flex items-center text-sm text-muted-foreground mt-1">
-                                            <Calendar className="h-4 w-4 mr-2" />
-                                            <span>{new Date(result.date).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center font-bold text-primary text-lg">
-                                        <Trophy className="h-5 w-5 mr-2" />
-                                        <span>{result.score} pts</span>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="text-center text-muted-foreground py-10">No quizzes played yet. Go play one!</p>
-                    )}
+                    <p className="text-center text-muted-foreground py-10">Quiz history coming soon!</p>
                 </CardContent>
             </Card>
         </div>

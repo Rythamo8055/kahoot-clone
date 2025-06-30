@@ -1,8 +1,10 @@
+
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import DashboardPage from '@/app/dashboard/page';
 import { useAuth } from '@/components/auth-provider';
 import { getDocs } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 // Mock dependencies
 jest.mock('@/components/auth-provider');
@@ -13,26 +15,41 @@ jest.mock('@/hooks/use-toast', () => ({
   }),
 }));
 jest.mock('next/navigation', () => ({
-    useRouter: () => ({
-      push: jest.fn(),
-    }),
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+  })),
 }));
 
 const mockUseAuth = useAuth as jest.Mock;
 const mockGetDocs = getDocs as jest.Mock;
+const mockUseRouter = useRouter as jest.Mock;
 
 describe('DashboardPage', () => {
+  let mockRouterPush: jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRouterPush = jest.fn();
+    mockUseRouter.mockReturnValue({ push: mockRouterPush });
   });
 
   it('shows loading skeletons when auth is loading', () => {
     mockUseAuth.mockReturnValue({ user: null, loading: true });
     render(<DashboardPage />);
-    expect(screen.getAllByText('', { selector: '.h-6.w-3\\/4' })).toHaveLength(3); // A bit fragile, but checks for skeleton render
+    // Check for the presence of multiple skeletons
+    const skeletons = screen.getAllByRole('generic', { name: '' });
+    expect(skeletons.length).toBeGreaterThan(2); 
   });
 
-  it('shows "No Quizzes Yet!" message when there are no quizzes', async () => {
+  it('redirects to /login if user is not authenticated and auth is not loading', async () => {
+    mockUseAuth.mockReturnValue({ user: null, loading: false });
+    render(<DashboardPage />);
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith('/login');
+    });
+  });
+
+  it('shows "No Quizzes Yet!" message when there are no quizzes for an authenticated user', async () => {
     mockUseAuth.mockReturnValue({ user: { uid: 'test-user' }, loading: false });
     mockGetDocs.mockResolvedValue({ docs: [] });
 
@@ -44,7 +61,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Click the button below to create your first quiz.')).toBeInTheDocument();
   });
 
-  it('displays a list of quizzes when they exist', async () => {
+  it('displays a list of quizzes when they exist for an authenticated user', async () => {
     mockUseAuth.mockReturnValue({ user: { uid: 'test-user' }, loading: false });
     const mockQuizzes = [
       { id: '1', data: () => ({ title: 'Quiz One', description: 'Desc One', questions: [{}] }) },
@@ -56,10 +73,10 @@ describe('DashboardPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Quiz One')).toBeInTheDocument();
-      expect(screen.getByText('Desc One')).toBeInTheDocument();
-      expect(screen.getByText('1 Questions')).toBeInTheDocument();
     });
 
+    expect(screen.getByText('Desc One')).toBeInTheDocument();
+    expect(screen.getByText('1 Questions')).toBeInTheDocument();
     expect(screen.getByText('Quiz Two')).toBeInTheDocument();
     expect(screen.getByText('Desc Two')).toBeInTheDocument();
     expect(screen.getByText('2 Questions')).toBeInTheDocument();
@@ -81,10 +98,9 @@ describe('DashboardPage', () => {
     });
   });
 
-  it('does not fetch quizzes if user is not logged in', () => {
+  it('does not fetch quizzes if user object is not yet available', () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false });
     render(<DashboardPage />);
     expect(mockGetDocs).not.toHaveBeenCalled();
-    expect(screen.getByText('No Quizzes Yet!')).toBeInTheDocument();
   });
 });

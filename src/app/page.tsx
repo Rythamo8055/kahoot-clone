@@ -1,8 +1,14 @@
+
+"use client";
+
 import { Button } from "@/components/ui/button";
-import { Sparkles, Gamepad2, ArrowRight, Bot } from "lucide-react";
+import { Sparkles, Gamepad2, ArrowRight, Bot, LogIn } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/components/auth-provider";
 
 export default function Home() {
+  const { user } = useAuth();
+  
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="container mx-auto px-4 py-6 flex justify-between items-center">
@@ -11,7 +17,14 @@ export default function Home() {
             <span className="font-bold sm:inline-block font-headline text-foreground">QuizAI</span>
         </Link>
         <Button asChild>
-          <Link href="/dashboard">Go to Dashboard</Link>
+          {user ? (
+            <Link href="/dashboard">Go to Dashboard</Link>
+          ) : (
+            <Link href="/login">
+              <LogIn className="mr-2 h-4 w-4" />
+              Sign In
+            </Link>
+          )}
         </Button>
       </header>
       <main className="flex-1 flex flex-col items-center justify-center text-center px-4">

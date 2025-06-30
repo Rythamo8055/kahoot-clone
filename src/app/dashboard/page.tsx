@@ -17,20 +17,22 @@ import { useAuth } from "@/components/auth-provider";
 
 export default function DashboardPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
   const [isCreatingSession, setIsCreatingSession] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!user) {
-        setLoading(false);
-        return;
-    };
+    if (!authLoading && !user) {
+      router.push('/login');
+      return;
+    }
+
+    if (!user) return;
 
     const fetchQuizzes = async () => {
-        setLoading(true);
+        setLoadingQuizzes(true);
         try {
             const quizzesRef = collection(db, "quizzes");
             const q = query(quizzesRef, where("userId", "==", user.uid), orderBy("createdAt", "desc"));
@@ -50,12 +52,12 @@ export default function DashboardPage() {
                 variant: "destructive"
             })
         } finally {
-            setLoading(false);
+            setLoadingQuizzes(false);
         }
     }
 
     fetchQuizzes();
-  }, [user, toast]);
+  }, [user, authLoading, toast, router]);
   
   const handleHostQuiz = async (quiz: Quiz) => {
     setIsCreatingSession(quiz.id);
@@ -100,6 +102,18 @@ export default function DashboardPage() {
     </Card>
   )
 
+  if (authLoading || !user) {
+    return (
+      <AppShell>
+         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <QuizSkeleton />
+            <QuizSkeleton />
+            <QuizSkeleton />
+         </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <div className="space-y-8">
@@ -116,7 +130,7 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        {loading ? (
+        {loadingQuizzes ? (
            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
              <QuizSkeleton />
              <QuizSkeleton />

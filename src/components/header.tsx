@@ -1,19 +1,26 @@
+
 "use client";
 
 import Link from "next/link";
-import { Home, PlusSquare, User, Bot } from "lucide-react";
+import { Home, PlusSquare, User, Bot, LogIn } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
-
-const navLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/create", label: "Create Quiz", icon: PlusSquare },
-  { href: "/profile", label: "Profile", icon: User },
-];
+import { useAuth } from "./auth-provider";
 
 export default function Header() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const navLinks = [
+    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/create", label: "Create Quiz", icon: PlusSquare },
+    { 
+      href: user ? "/profile" : "/login", 
+      label: user ? "Profile" : "Login", 
+      icon: user ? User : LogIn 
+    },
+  ];
 
   return (
     <header className="hidden md:flex sticky top-0 z-50 w-full border-b bg-card">

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppShell from "@/components/app-shell";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { db } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const questionSchema = z.object({
   question: z.string().min(1, "Question cannot be empty"),
@@ -40,7 +41,13 @@ export default function CreateQuizPage() {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
   const form = useForm<QuizFormData>({
     resolver: zodResolver(quizSchema),
@@ -124,6 +131,18 @@ export default function CreateQuizPage() {
     }
   };
 
+  if (authLoading || !user) {
+    return (
+        <AppShell>
+            <div className="max-w-4xl mx-auto space-y-8">
+                <Skeleton className="h-48 w-full"/>
+                <Skeleton className="h-24 w-full"/>
+                <Skeleton className="h-64 w-full"/>
+            </div>
+        </AppShell>
+    )
+  }
+
   return (
     <AppShell>
       <div className="max-w-4xl mx-auto space-y-8">
@@ -184,7 +203,7 @@ export default function CreateQuizPage() {
                     <div>
                       <FormLabel>Options</FormLabel>
                       <div className="space-y-2 mt-2">
-                         {field.options.map((_, optionIndex) => (
+                         {form.getValues(`questions.${index}.options`).map((_, optionIndex) => (
                            <FormField key={optionIndex} control={form.control} name={`questions.${index}.options.${optionIndex}`} render={({ field }) => (
                               <FormItem><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                            )}/>
