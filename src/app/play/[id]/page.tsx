@@ -194,7 +194,6 @@ export default function PlayQuizPage() {
 
   // Question View
   if (game.gameState === 'question' && currentQuestion) {
-    const showResults = isAnswerRevealed || selectedAnswer !== null;
     const localPlayerScore = players.find(p => p.id === localPlayer?.id)?.score ?? 0;
 
     return (
@@ -219,20 +218,31 @@ export default function PlayQuizPage() {
                     <Button
                       key={index}
                       onClick={() => handleAnswerSelect(index)}
-                      disabled={showResults || isHost}
+                      disabled={selectedAnswer !== null || isAnswerRevealed || isHost}
                       className={cn(
                         "h-auto py-4 text-lg whitespace-normal justify-start transition-all duration-300 transform",
-                        showResults && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isSelected ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),
-                        !showResults && "hover:scale-105 hover:bg-accent/50"
+                        // When results ARE revealed
+                        isAnswerRevealed && (
+                          isCorrect 
+                            ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" 
+                            : isSelected 
+                              ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" 
+                              : "bg-muted hover:bg-muted opacity-50"
+                        ),
+                        // When results ARE NOT revealed
+                        !isAnswerRevealed && (
+                          isSelected 
+                            ? "bg-primary/80 ring-2 ring-primary text-primary-foreground" 
+                            : "hover:scale-105 hover:bg-accent/50"
+                        )
                       )}
                       variant="outline"
                     >
                       <div className="flex items-center w-full">
                         <span className="mr-4 text-lg font-bold">{String.fromCharCode(65 + index)}</span>
-
                         <span className="flex-1 text-left">{option}</span>
-                        {showResults && isCorrect && <CheckCircle2 className="ml-4" />}
-                        {showResults && isSelected && !isCorrect && <XCircle className="ml-4" />}
+                        {isAnswerRevealed && isCorrect && <CheckCircle2 className="ml-4" />}
+                        {isAnswerRevealed && isSelected && !isCorrect && <XCircle className="ml-4" />}
                       </div>
                     </Button>
                   );
@@ -240,7 +250,7 @@ export default function PlayQuizPage() {
               </div>
             </CardContent>
           </Card>
-          {isHost && showResults && (
+          {isHost && isAnswerRevealed && (
             <div className="mt-8 text-center">
                 <Button onClick={handleHostAction}>Show Leaderboard</Button>
             </div>
