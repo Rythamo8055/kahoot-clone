@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   description: "Create and play quizzes with the power of AI",
   manifest: "/manifest.json",
   icons: {
-    icon: "https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/Minimal-Nord.png",
-    apple: "https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/Minimal-Nord.png",
+    icon: "/icons/icon-192x192.svg",
+    apple: "/icons/icon-192x192.svg",
   },
   themeColor: "#23272f",
 };
@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={poppins.variable} suppressHydrationWarning>
-      <body className="font-body antialiased">
+      <body>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
