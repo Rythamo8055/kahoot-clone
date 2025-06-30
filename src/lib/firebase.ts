@@ -10,7 +10,6 @@ const firebaseConfig = {
   storageBucket: "for-backend-2a361.firebasestorage.app",
   messagingSenderId: "48916682423",
   appId: "1:48916682423:web:2800ee9cfc43d3f754df32",
-  measurementId: "G-7R9G6P3HTK"
 };
 
 
