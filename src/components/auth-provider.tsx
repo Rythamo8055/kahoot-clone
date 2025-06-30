@@ -44,7 +44,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleAuthSuccess = (message: string) => {
-    router.push('/dashboard');
+    router.push('/');
     toast({ title: message });
   }
 
