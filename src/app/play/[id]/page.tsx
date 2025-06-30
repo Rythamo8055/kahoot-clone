@@ -3,14 +3,14 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import type { Quiz, Question, Player, GameState } from "@/lib/types";
+import type { Quiz, Player, GameState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, XCircle, Loader2, Users, Crown, Home, Repeat } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Users, Crown, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
-import { doc, collection, onSnapshot, updateDoc, writeBatch } from "firebase/firestore";
+import { doc, collection, onSnapshot, updateDoc, writeBatch, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 
@@ -27,6 +27,7 @@ export default function PlayQuizPage() {
   const { toast } = useToast();
 
   const [game, setGame] = useState<GameState | null>(null);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [localPlayer, setLocalPlayer] = useState<{ id: string; name: string } | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -66,6 +67,23 @@ export default function PlayQuizPage() {
     };
   }, [gamePin, router, toast, isHost, gameRef, playersRef]);
 
+  useEffect(() => {
+    if (!game?.quizId || quiz) return;
+
+    const fetchQuiz = async () => {
+        const quizRef = doc(db, "quizzes", game.quizId);
+        const quizSnap = await getDoc(quizRef);
+        if (quizSnap.exists()) {
+            setQuiz({ id: quizSnap.id, ...quizSnap.data() } as Quiz);
+        } else {
+            toast({ title: "Quiz not found", description: "The associated quiz for this game could not be found.", variant: "destructive" });
+            router.push("/dashboard");
+        }
+    };
+    
+    fetchQuiz();
+  }, [game, quiz, router, toast]);
+
   // Timer logic
   useEffect(() => {
     if (game?.gameState !== 'question' || isAnswerRevealed) {
@@ -93,7 +111,7 @@ export default function PlayQuizPage() {
   }, [game?.currentQuestionIndex]);
 
   const handleHostAction = async () => {
-    if (!isHost || !game) return;
+    if (!isHost || !game || !quiz) return;
 
     const batch = writeBatch(db);
 
@@ -106,21 +124,24 @@ export default function PlayQuizPage() {
         break;
       case 'leaderboard':
         const nextIndex = game.currentQuestionIndex + 1;
-        if (nextIndex < game.quizData.questions.length) {
+        if (nextIndex < quiz.questions.length) {
           batch.update(gameRef, { gameState: 'question', currentQuestionIndex: nextIndex });
         } else {
           batch.update(gameRef, { gameState: 'finished' });
         }
         break;
+      case 'finished':
+          router.push('/dashboard');
+          break;
     }
     await batch.commit();
   };
 
   const handleAnswerSelect = async (answerIndex: number) => {
-    if (!game || !localPlayer || selectedAnswer !== null) return;
+    if (!game || !localPlayer || selectedAnswer !== null || !quiz) return;
     setSelectedAnswer(answerIndex);
 
-    const currentQuestion = game.quizData.questions[game.currentQuestionIndex];
+    const currentQuestion = quiz.questions[game.currentQuestionIndex];
     const isCorrect = answerIndex === currentQuestion.answer;
     
     let points = 0;
@@ -149,8 +170,6 @@ export default function PlayQuizPage() {
     );
   }
   
-  const currentQuestion = game.quizData.questions[game.currentQuestionIndex];
-
   // Waiting Lobby
   if (game.gameState === 'waiting') {
     return (
@@ -158,9 +177,9 @@ export default function PlayQuizPage() {
         <Card className="w-full max-w-2xl text-center bg-card/60 backdrop-blur-sm">
             <CardHeader>
                 <CardTitle className="text-3xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">
-                    {isHost ? "Ready to Host?" : "You're In!"}
+                    {isHost ? `Ready to Host: ${game.quizTitle}` : "You're In!"}
                 </CardTitle>
-                <CardDescription>{isHost ? "Share the PIN so others can join." : "Get ready! The quiz will start soon."}</CardDescription>
+                <CardDescription>{isHost ? "Share the PIN so others can join." : `Get ready for "${game.quizTitle}"! The quiz will start soon.`}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <p className="text-muted-foreground">Game PIN</p>
@@ -191,6 +210,17 @@ export default function PlayQuizPage() {
       </div>
     );
   }
+  
+  if (!quiz) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4">Loading Quiz...</p>
+      </div>
+    );
+  }
+
+  const currentQuestion = quiz.questions[game.currentQuestionIndex];
 
   // Question View
   if (game.gameState === 'question' && currentQuestion) {
@@ -201,7 +231,7 @@ export default function PlayQuizPage() {
           <Card className="w-full max-w-3xl shadow-2xl bg-card/60 backdrop-blur-sm">
             <CardHeader>
               <div className="flex justify-between items-center mb-4">
-                <p className="text-sm font-medium text-muted-foreground">Question {game.currentQuestionIndex + 1} of {game.quizData.questions.length}</p>
+                <p className="text-sm font-medium text-muted-foreground">Question {game.currentQuestionIndex + 1} of {quiz.questions.length}</p>
                 {!isHost && <p className="text-lg font-bold text-primary">{localPlayerScore} points</p>}
                 <p className="text-2xl font-bold">{timer}</p>
               </div>
@@ -221,20 +251,8 @@ export default function PlayQuizPage() {
                       disabled={selectedAnswer !== null || isAnswerRevealed || isHost}
                       className={cn(
                         "h-auto py-4 text-lg whitespace-normal justify-start transition-all duration-300 transform",
-                        // When results ARE revealed
-                        isAnswerRevealed && (
-                          isCorrect 
-                            ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" 
-                            : isSelected 
-                              ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" 
-                              : "bg-muted hover:bg-muted opacity-50"
-                        ),
-                        // When results ARE NOT revealed
-                        !isAnswerRevealed && (
-                          isSelected 
-                            ? "bg-primary/80 ring-2 ring-primary text-primary-foreground" 
-                            : "hover:scale-105 hover:bg-accent/50"
-                        )
+                        isAnswerRevealed && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isSelected ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),
+                        !isAnswerRevealed && (isSelected ? "bg-primary/80 ring-2 ring-primary text-primary-foreground" : "hover:scale-105 hover:bg-accent/50")
                       )}
                       variant="outline"
                     >
@@ -267,7 +285,7 @@ export default function PlayQuizPage() {
             <Card className="w-full max-w-2xl text-center bg-card/60 backdrop-blur-sm">
                  <CardHeader>
                     <CardTitle className="text-3xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">
-                        {isFinished ? "Final Results!" : "Leaderboard"}
+                        {isFinished ? `Final Results: ${game.quizTitle}` : "Leaderboard"}
                     </CardTitle>
                     {isFinished && <CardDescription>Congratulations to the winner!</CardDescription>}
                  </CardHeader>
@@ -289,7 +307,7 @@ export default function PlayQuizPage() {
 
             {isHost && (
                 <Button size="lg" onClick={handleHostAction}>
-                    {isFinished ? "Play Again?" : "Next Question"}
+                    {isFinished ? "Back to Dashboard" : "Next Question"}
                 </Button>
             )}
 

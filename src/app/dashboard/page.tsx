@@ -66,8 +66,8 @@ export default function DashboardPage() {
         
         await setDoc(doc(db, "games", gamePin), {
             quizId: quiz.id,
-            quizData: quiz,
-            gameState: "waiting", // waiting, question, leaderboard, finished
+            quizTitle: quiz.title,
+            gameState: "waiting",
             currentQuestionIndex: -1,
             questionStartTime: null,
             createdAt: serverTimestamp(),

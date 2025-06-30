@@ -33,7 +33,7 @@ export interface Player {
 export interface GameState {
   id: string;
   quizId: string;
-  quizData: Quiz;
+  quizTitle: string;
   gameState: 'waiting' | 'question' | 'leaderboard' | 'finished';
   currentQuestionIndex: number;
   questionStartTime: any;
