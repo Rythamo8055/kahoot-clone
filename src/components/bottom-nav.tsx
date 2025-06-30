@@ -17,14 +17,15 @@ import { useAuth } from "./auth-provider";
 export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const isAuthenticated = user && !user.isAnonymous;
 
   const navLinks = [
     { href: "/dashboard", icon: Home, label: "Home" },
     { href: "/create", icon: PlusSquare, label: "Create" },
     { 
-      href: user ? "/profile" : "/login", 
-      icon: user ? User : LogIn, 
-      label: user ? "Profile" : "Login" 
+      href: isAuthenticated ? "/profile" : "/login", 
+      icon: isAuthenticated ? User : LogIn, 
+      label: isAuthenticated ? "Profile" : "Login" 
     },
   ];
 
@@ -39,7 +40,7 @@ export default function BottomNav() {
                   href={link.href}
                   className={cn(
                     "flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground md:h-14 md:w-14",
-                    (pathname === link.href || (pathname === '/login' && link.href === (user ? '/profile' : '/login'))) && "bg-accent text-accent-foreground"
+                    pathname === link.href && "bg-accent text-accent-foreground"
                   )}
                 >
                   <link.icon className="h-5 w-5" />

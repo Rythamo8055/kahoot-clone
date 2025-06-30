@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth-provider";
 
 export default function Home() {
   const { user } = useAuth();
+  const isAuthenticated = user && !user.isAnonymous;
   
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -17,7 +18,7 @@ export default function Home() {
             <span className="font-bold sm:inline-block font-headline text-foreground">QuizAI</span>
         </Link>
         <Button asChild>
-          {user ? (
+          {isAuthenticated ? (
             <Link href="/dashboard">Go to Dashboard</Link>
           ) : (
             <Link href="/login">
