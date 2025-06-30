@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, addDoc, collection } from "firebase/firestore";
+import { useAuth } from "@/components/auth-provider";
 
 export default function JoinPage() {
     const [code, setCode] = useState("");
@@ -19,6 +20,7 @@ export default function JoinPage() {
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
+    const { user } = useAuth();
 
     const handleCodeSubmit = async () => {
         if (!code) {
@@ -52,10 +54,18 @@ export default function JoinPage() {
 
         try {
             const playersCollectionRef = collection(db, "games", code, "players");
-            const playerDocRef = await addDoc(playersCollectionRef, {
+
+            const playerData: { name: string; score: number; userId?: string; } = {
                 name: nickname,
                 score: 0
-            });
+            };
+
+            if (user && !user.isAnonymous) {
+                playerData.userId = user.uid;
+            }
+
+            const playerDocRef = await addDoc(playersCollectionRef, playerData);
+
             localStorage.setItem(`player-${code}`, JSON.stringify({ id: playerDocRef.id, name: nickname }));
             router.push(`/play/${code}`);
         } catch (error) {

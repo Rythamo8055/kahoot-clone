@@ -10,14 +10,56 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { collectionGroup, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProfilePage() {
-    const { user, loading, logout } = useAuth();
+    const { user, loading: authLoading, logout } = useAuth();
+    const [stats, setStats] = useState({ totalQuizzes: 0, totalScore: 0 });
+    const [loadingStats, setLoadingStats] = useState(true);
+    const { toast } = useToast();
     
-    // Note: Quiz history is no longer stored in localStorage.
-    // This would need to be fetched from Firestore based on the user's ID.
-    const totalQuizzes = 0;
-    const totalScore = 0;
+    useEffect(() => {
+        if (!user || user.isAnonymous) {
+            setLoadingStats(false);
+            return;
+        }
+
+        const fetchUserStats = async () => {
+            setLoadingStats(true);
+            try {
+                const playersQuery = query(
+                    collectionGroup(db, 'players'), 
+                    where('userId', '==', user.uid)
+                );
+
+                const querySnapshot = await getDocs(playersQuery);
+                
+                let totalQuizzes = 0;
+                let totalScore = 0;
+                
+                querySnapshot.forEach(doc => {
+                    totalQuizzes += 1;
+                    totalScore += doc.data().score || 0;
+                });
+
+                setStats({ totalQuizzes, totalScore });
+
+            } catch (error) {
+                console.error("Error fetching user stats:", error);
+                toast({
+                    title: "Failed to load stats",
+                    description: "Could not fetch your quiz statistics. This may be a temporary issue. The required database index might still be building.",
+                    variant: "destructive",
+                });
+            } finally {
+                setLoadingStats(false);
+            }
+        };
+
+        fetchUserStats();
+    }, [user, toast]);
 
     const ProfileSkeleton = () => (
       <AppShell>
@@ -43,11 +85,11 @@ export default function ProfilePage() {
       </AppShell>
     );
 
-    if (loading) {
+    if (authLoading) {
         return <ProfileSkeleton />;
     }
 
-    if (!user) {
+    if (!user || user.isAnonymous) {
         return (
             <AppShell>
                 <div className="text-center py-20 border-2 border-dashed rounded-lg bg-card/60 backdrop-blur-sm">
@@ -79,11 +121,11 @@ export default function ProfilePage() {
                      <div className="flex items-center gap-6 mt-2 text-sm text-foreground">
                         <div className="flex items-center gap-2">
                             <CheckSquare className="h-5 w-5 text-primary" />
-                            <span><span className="font-bold">{totalQuizzes}</span> Quizzes Taken</span>
+                            {loadingStats ? <Skeleton className="h-5 w-24" /> : <span><span className="font-bold">{stats.totalQuizzes}</span> Quizzes Taken</span>}
                         </div>
                         <div className="flex items-center gap-2">
                             <Trophy className="h-5 w-5 text-primary" />
-                            <span><span className="font-bold">{totalScore}</span> Total Points</span>
+                             {loadingStats ? <Skeleton className="h-5 w-24" /> : <span><span className="font-bold">{stats.totalScore}</span> Total Points</span>}
                         </div>
                     </div>
                 </div>
@@ -96,10 +138,10 @@ export default function ProfilePage() {
             <Card className="bg-card/60 backdrop-blur-sm">
                 <CardHeader>
                     <CardTitle className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">Quiz History</CardTitle>
-                    <CardDescription>Your past quiz performances.</CardDescription>
+                    <CardDescription>A summary of your past performances.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-center text-muted-foreground py-10">Quiz history coming soon!</p>
+                    <p className="text-center text-muted-foreground py-10">Detailed quiz history is coming soon!</p>
                 </CardContent>
             </Card>
         </div>
