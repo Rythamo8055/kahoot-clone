@@ -63,9 +63,11 @@ export default function DashboardPage() {
         const gamePin = Math.floor(100000 + Math.random() * 900000).toString();
         
         await setDoc(doc(db, "games", gamePin), {
+            quizId: quiz.id,
             quizData: quiz,
-            status: "waiting", // waiting, in-progress, finished
+            gameState: "waiting", // waiting, question, leaderboard, finished
             currentQuestionIndex: -1,
+            questionStartTime: null,
             createdAt: serverTimestamp(),
         });
 

@@ -1,3 +1,4 @@
+
 export interface Question {
   id: string;
   question: string;
@@ -23,7 +24,18 @@ export interface QuizResult {
 }
 
 export interface Player {
-  id: string;
+  id:string;
   name: string;
   score: number;
+  lastAnswer?: number | null;
+}
+
+export interface GameState {
+  id: string;
+  quizId: string;
+  quizData: Quiz;
+  gameState: 'waiting' | 'question' | 'leaderboard' | 'finished';
+  currentQuestionIndex: number;
+  questionStartTime: any;
+  createdAt: any;
 }
