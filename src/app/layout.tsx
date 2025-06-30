@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import { Poppins } from 'next/font/google';
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import BackgroundProvider from "@/components/background-provider";
 import AuthProvider from "@/components/auth-provider";
+
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '600', '700'],
+  variable: '--font-poppins',
+});
 
 export const metadata: Metadata = {
   title: "QuizAI",
@@ -12,6 +19,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/Minimal-Nord.png",
   },
+  themeColor: "#23272f",
 };
 
 export default function RootLayout({
@@ -20,16 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
-          rel="stylesheet"
-        />
-        <meta name="theme-color" content="#23272f" />
-      </head>
+    <html lang="en" className={poppins.variable} suppressHydrationWarning>
       <body className="font-body antialiased">
         <ThemeProvider
           attribute="class"
