@@ -205,7 +205,15 @@ export default function CreateQuizPage() {
                       <div className="space-y-2 mt-2">
                          {form.getValues(`questions.${index}.options`).map((_, optionIndex) => (
                            <FormField key={optionIndex} control={form.control} name={`questions.${index}.options.${optionIndex}`} render={({ field }) => (
-                              <FormItem><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem>
+                               <div className="flex items-center gap-4">
+                                   <span className="flex h-10 w-10 items-center justify-center rounded-md bg-muted font-semibold">
+                                       {String.fromCharCode(65 + optionIndex)}
+                                   </span>
+                                   <FormControl><Input {...field} /></FormControl>
+                               </div>
+                               <FormMessage className="ml-14" />
+                           </FormItem>
                            )}/>
                          ))}
                       </div>
@@ -216,7 +224,7 @@ export default function CreateQuizPage() {
                           <FormControl><SelectTrigger><SelectValue placeholder="Select the correct answer" /></SelectTrigger></FormControl>
                           <SelectContent>
                             {form.getValues(`questions.${index}.options`).map((opt, optIndex) => (
-                              <SelectItem key={optIndex} value={String(optIndex)}>{opt || `Option ${optIndex + 1}`}</SelectItem>
+                              <SelectItem key={optIndex} value={String(optIndex)}>{`Option ${String.fromCharCode(65 + optIndex)}`}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
