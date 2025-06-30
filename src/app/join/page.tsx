@@ -31,7 +31,7 @@ export default function JoinPage() {
             const gameRef = doc(db, "games", code);
             const gameSnap = await getDoc(gameRef);
 
-            if (gameSnap.exists() && gameSnap.data().status === 'waiting') {
+            if (gameSnap.exists() && gameSnap.data().gameState === 'waiting') {
                 setStep("nickname");
             } else {
                 toast({ title: "Game not found", description: "The code is invalid or the game has already started.", variant: "destructive" });
