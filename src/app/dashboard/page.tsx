@@ -6,7 +6,7 @@ import AppShell from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Quiz } from "@/lib/types";
-import { FilePlus, Play, BarChart2, Loader2, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { FilePlus, Play, BarChart2, Loader2, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
@@ -14,13 +14,6 @@ import { doc, writeBatch, serverTimestamp, collection, query, where, onSnapshot,
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +24,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 export default function DashboardPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -162,108 +157,116 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-       <AlertDialog open={!!quizToDelete} onOpenChange={(open) => !open && setQuizToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the quiz
-              "{quizToDelete?.title}".
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteQuiz}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <TooltipProvider>
+        <AlertDialog open={!!quizToDelete} onOpenChange={(open) => !open && setQuizToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the quiz
+                "{quizToDelete?.title}".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteQuiz}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">My Quizzes</h1>
-            <p className="text-muted-foreground">Create, manage, and host your quizzes here.</p>
+        <div className="space-y-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">My Quizzes</h1>
+              <p className="text-muted-foreground">Create, manage, and host your quizzes here.</p>
+            </div>
+            <Button asChild>
+              <Link href="/create">
+                <FilePlus className="mr-2 h-4 w-4" />
+                Create Quiz
+              </Link>
+            </Button>
           </div>
-          <Button asChild>
-            <Link href="/create">
-              <FilePlus className="mr-2 h-4 w-4" />
-              Create Quiz
-            </Link>
-          </Button>
-        </div>
 
-        {loadingQuizzes ? (
-           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-             <QuizSkeleton />
-             <QuizSkeleton />
-             <QuizSkeleton />
-           </div>
-        ) : quizzes.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {quizzes.map((quiz) => (
-              <Card key={quiz.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300 bg-card/60 backdrop-blur-sm">
-                <CardHeader className="flex flex-row items-start justify-between">
-                  <div className="flex-1">
+          {loadingQuizzes ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <QuizSkeleton />
+              <QuizSkeleton />
+              <QuizSkeleton />
+            </div>
+          ) : quizzes.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {quizzes.map((quiz) => (
+                <Card key={quiz.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300 bg-card/60 backdrop-blur-sm">
+                  <CardHeader>
                     <CardTitle className="truncate">{quiz.title}</CardTitle>
                     <CardDescription className="h-10 text-ellipsis overflow-hidden pt-1">
                       {quiz.description || "No description."}
                     </CardDescription>
-                  </div>
-                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleHostQuiz(quiz)} disabled={isCreatingSession === quiz.id}>
-                         {isCreatingSession === quiz.id ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" />) : ( <Play className="mr-2 h-4 w-4" /> )}
-                        <span>Host</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/results/${quiz.id}?title=${encodeURIComponent(quiz.title)}`}>
-                          <BarChart2 className="mr-2 h-4 w-4" />
-                          <span>Results</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href={`/edit/${quiz.id}`}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          <span>Edit</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setQuizToDelete(quiz)} className="text-destructive focus:bg-destructive/20 focus:text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        <span>Delete</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="text-sm text-muted-foreground">{quiz.questions.length} Questions</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20 border-2 border-dashed rounded-lg bg-card/60 backdrop-blur-sm">
-            <h3 className="text-xl font-semibold">No Quizzes Yet!</h3>
-            <p className="text-muted-foreground my-2">Click the button below to create your first quiz.</p>
-            <Button asChild className="mt-4">
-              <Link href="/create">
-                <FilePlus className="mr-2 h-4 w-4" />
-                Create Your First Quiz
-              </Link>
-            </Button>
-          </div>
-        )}
-      </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="text-sm text-muted-foreground">{quiz.questions.length} Questions</p>
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-1 pt-4">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => handleHostQuiz(quiz)} disabled={isCreatingSession === quiz.id}>
+                                {isCreatingSession === quiz.id ? ( <Loader2 className="h-4 w-4 animate-spin" />) : ( <Play className="h-4 w-4" /> )}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Host</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" asChild>
+                            <Link href={`/results/${quiz.id}?title=${encodeURIComponent(quiz.title)}`}>
+                                <BarChart2 className="h-4 w-4" />
+                            </Link>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Results</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" asChild>
+                            <Link href={`/edit/${quiz.id}`}>
+                                <Edit className="h-4 w-4" />
+                            </Link>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Edit</p></TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => setQuizToDelete(quiz)} className="text-destructive hover:text-destructive hover:bg-destructive/10 focus-visible:ring-destructive">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Delete</p></TooltipContent>
+                    </Tooltip>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 border-2 border-dashed rounded-lg bg-card/60 backdrop-blur-sm">
+              <h3 className="text-xl font-semibold">No Quizzes Yet!</h3>
+              <p className="text-muted-foreground my-2">Click the button below to create your first quiz.</p>
+              <Button asChild className="mt-4">
+                <Link href="/create">
+                  <FilePlus className="mr-2 h-4 w-4" />
+                  Create Your First Quiz
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
+      </TooltipProvider>
     </AppShell>
   );
 }
