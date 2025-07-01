@@ -5,16 +5,13 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import type { Quiz, Player, GameState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, XCircle, Loader2, Users, Crown, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
-import { doc, collection, onSnapshot, updateDoc, writeBatch, getDoc } from "firebase/firestore";
+import { doc, collection, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
-
-const TIMER_DURATION = 20;
 
 const sortedPlayers = (players: Player[]) => [...players].sort((a, b) => b.score - a.score);
 
@@ -31,8 +28,7 @@ export default function PlayQuizPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [localPlayer, setLocalPlayer] = useState<{ id: string; name: string } | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [timer, setTimer] = useState(TIMER_DURATION);
-  const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const gameRef = useMemo(() => doc(db, "games", gamePin), [gamePin]);
   const playersRef = useMemo(() => collection(db, "games", gamePin, "players"), [gamePin]);
@@ -41,7 +37,7 @@ export default function PlayQuizPage() {
     const storedPlayer = localStorage.getItem(`player-${gamePin}`);
     if (storedPlayer) {
       setLocalPlayer(JSON.parse(storedPlayer));
-    } else if (!isHost) {
+    } else {
       toast({ title: "Error", description: "Could not identify player. Please rejoin.", variant: "destructive" });
       router.push('/join');
       return;
@@ -65,7 +61,7 @@ export default function PlayQuizPage() {
       unsubGame();
       unsubPlayers();
     };
-  }, [gamePin, router, toast, isHost, gameRef, playersRef]);
+  }, [gamePin, router, toast, gameRef, playersRef]);
 
   useEffect(() => {
     if (!game?.quizId || quiz) return;
@@ -84,70 +80,55 @@ export default function PlayQuizPage() {
     fetchQuiz();
   }, [game, quiz, router, toast]);
 
-  // Timer logic
-  useEffect(() => {
-    if (game?.gameState !== 'question' || isAnswerRevealed) {
-        setTimer(TIMER_DURATION);
-        return;
-    }
-
-    const interval = setInterval(() => {
-        setTimer(prev => {
-            if (prev > 1) return prev - 1;
-            clearInterval(interval);
-            setIsAnswerRevealed(true);
-            return 0;
-        });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [game?.gameState, game?.currentQuestionIndex, isAnswerRevealed]);
 
   // Reset answer state on new question
   useEffect(() => {
     setSelectedAnswer(null);
-    setIsAnswerRevealed(false);
-    setTimer(TIMER_DURATION);
   }, [game?.currentQuestionIndex]);
 
   const handleHostAction = async () => {
-    if (!isHost || !game || !quiz) return;
+    if (!isHost || !game || !quiz || isProcessing) return;
+    setIsProcessing(true);
 
-    const batch = writeBatch(db);
-
-    switch (game.gameState) {
-      case 'waiting':
-        batch.update(gameRef, { gameState: 'question', currentQuestionIndex: 0 });
-        break;
-      case 'question':
-        batch.update(gameRef, { gameState: 'leaderboard' });
-        break;
-      case 'leaderboard':
-        const nextIndex = game.currentQuestionIndex + 1;
-        if (nextIndex < quiz.questions.length) {
-          batch.update(gameRef, { gameState: 'question', currentQuestionIndex: nextIndex });
-        } else {
-          batch.update(gameRef, { gameState: 'finished' });
+    try {
+        switch (game.gameState) {
+            case 'waiting':
+              await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: 0 });
+              break;
+            case 'question':
+              await updateDoc(gameRef, { gameState: 'reveal' });
+              break;
+            case 'reveal':
+              await updateDoc(gameRef, { gameState: 'leaderboard' });
+              break;
+            case 'leaderboard':
+              const nextIndex = game.currentQuestionIndex + 1;
+              if (nextIndex < quiz.questions.length) {
+                await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: nextIndex });
+              } else {
+                await updateDoc(gameRef, { gameState: 'finished' });
+              }
+              break;
+            case 'finished':
+                router.push('/dashboard');
+                break;
         }
-        break;
-      case 'finished':
-          router.push('/dashboard');
-          break;
+    } catch(error) {
+        console.error("Error updating game state:", error);
+        toast({ title: "Error", description: "Could not update the game state.", variant: "destructive" });
+    } finally {
+        setIsProcessing(false);
     }
-    await batch.commit();
   };
 
   const handleAnswerSelect = async (answerIndex: number) => {
-    if (!game || !localPlayer || selectedAnswer !== null || !quiz) return;
+    if (!game || !localPlayer || selectedAnswer !== null || !quiz || game.gameState !== 'question') return;
     setSelectedAnswer(answerIndex);
 
     const currentQuestion = quiz.questions[game.currentQuestionIndex];
     const isCorrect = answerIndex === currentQuestion.answer;
     
-    let points = 0;
-    if (isCorrect) {
-        points = 500 + Math.round(timer * (500 / TIMER_DURATION));
-    }
+    const points = isCorrect ? 1000 : 0;
     
     const playerRef = doc(db, "games", gamePin, "players", localPlayer.id);
     const currentPlayer = players.find(p => p.id === localPlayer.id);
@@ -170,7 +151,6 @@ export default function PlayQuizPage() {
     );
   }
   
-  // Waiting Lobby
   if (game.gameState === 'waiting') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4 space-y-8">
@@ -185,7 +165,8 @@ export default function PlayQuizPage() {
                 <p className="text-muted-foreground">Game PIN</p>
                 <p className="text-6xl font-bold tracking-widest text-primary">{gamePin}</p>
                  {isHost && (
-                    <Button size="lg" onClick={handleHostAction} disabled={players.length === 0}>
+                    <Button size="lg" onClick={handleHostAction} disabled={players.length === 0 || isProcessing}>
+                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                        Start Quiz ({players.length} {players.length === 1 ? 'player' : 'players'})
                     </Button>
                 )}
@@ -221,9 +202,9 @@ export default function PlayQuizPage() {
   }
 
   const currentQuestion = quiz.questions[game.currentQuestionIndex];
+  const isRevealPhase = game.gameState === 'reveal';
 
-  // Question View
-  if (game.gameState === 'question' && currentQuestion) {
+  if ((game.gameState === 'question' || game.gameState === 'reveal') && currentQuestion) {
     const localPlayerScore = players.find(p => p.id === localPlayer?.id)?.score ?? 0;
 
     return (
@@ -232,10 +213,8 @@ export default function PlayQuizPage() {
             <CardHeader>
               <div className="flex justify-between items-center mb-4">
                 <p className="text-sm font-medium text-muted-foreground">Question {game.currentQuestionIndex + 1} of {quiz.questions.length}</p>
-                {!isHost && <p className="text-lg font-bold text-primary">{localPlayerScore} points</p>}
-                <p className="text-2xl font-bold">{timer}</p>
+                <p className="text-lg font-bold text-primary">{localPlayerScore} points</p>
               </div>
-              <Progress value={(timer / TIMER_DURATION) * 100} className="w-full h-2 transition-all duration-1000 linear" />
               <CardTitle className="text-2xl md:text-3xl text-center pt-6 font-headline">{currentQuestion.question}</CardTitle>
             </CardHeader>
             <CardContent>
@@ -248,19 +227,19 @@ export default function PlayQuizPage() {
                     <Button
                       key={index}
                       onClick={() => handleAnswerSelect(index)}
-                      disabled={selectedAnswer !== null || isAnswerRevealed}
+                      disabled={selectedAnswer !== null || isRevealPhase}
                       className={cn(
                         "h-auto py-4 text-lg whitespace-normal justify-start transition-all duration-300 transform",
-                        isAnswerRevealed && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isSelected ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),
-                        !isAnswerRevealed && (isSelected ? "bg-primary/80 ring-2 ring-primary text-primary-foreground" : "hover:scale-105 hover:bg-accent/50")
+                        isRevealPhase && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isSelected ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),
+                        !isRevealPhase && (isSelected ? "bg-primary/80 ring-2 ring-primary text-primary-foreground" : "hover:scale-105 hover:bg-accent/50")
                       )}
                       variant="outline"
                     >
                       <div className="flex items-center w-full">
                         <span className="mr-4 text-lg font-bold">{String.fromCharCode(65 + index)}</span>
                         <span className="flex-1 text-left">{option}</span>
-                        {isAnswerRevealed && isCorrect && <CheckCircle2 className="ml-4" />}
-                        {isAnswerRevealed && isSelected && !isCorrect && <XCircle className="ml-4" />}
+                        {isRevealPhase && isCorrect && <CheckCircle2 className="ml-4" />}
+                        {isRevealPhase && isSelected && !isCorrect && <XCircle className="ml-4" />}
                       </div>
                     </Button>
                   );
@@ -268,16 +247,18 @@ export default function PlayQuizPage() {
               </div>
             </CardContent>
           </Card>
-          {isHost && isAnswerRevealed && (
+          {isHost && (
             <div className="mt-8 text-center">
-                <Button onClick={handleHostAction}>Show Leaderboard</Button>
+                <Button onClick={handleHostAction} disabled={isProcessing}>
+                  {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Next
+                </Button>
             </div>
           )}
         </div>
       );
   }
 
-  // Leaderboard / Finished View
   if (game.gameState === 'leaderboard' || game.gameState === 'finished') {
     const isFinished = game.gameState === 'finished';
     return (
@@ -306,7 +287,8 @@ export default function PlayQuizPage() {
             </Card>
 
             {isHost && (
-                <Button size="lg" onClick={handleHostAction}>
+                <Button size="lg" onClick={handleHostAction} disabled={isProcessing}>
+                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {isFinished ? "Back to Dashboard" : "Next Question"}
                 </Button>
             )}

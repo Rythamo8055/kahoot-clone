@@ -34,7 +34,7 @@ export interface GameState {
   id: string;
   quizId: string;
   quizTitle: string;
-  gameState: 'waiting' | 'question' | 'leaderboard' | 'finished';
+  gameState: 'waiting' | 'question' | 'reveal' | 'leaderboard' | 'finished';
   currentQuestionIndex: number;
   questionStartTime: any;
   createdAt: any;
