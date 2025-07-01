@@ -66,31 +66,29 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, [user, authLoading, toast, router]);
   
-  const handleHostQuiz = async (quiz: Quiz) => {
+  const handleHostQuiz = (quiz: Quiz) => {
+    if (isCreatingSession) return;
     setIsCreatingSession(quiz.id);
-    try {
-        const gamePin = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        await setDoc(doc(db, "games", gamePin), {
-            quizId: quiz.id,
-            quizTitle: quiz.title,
-            gameState: "waiting",
-            currentQuestionIndex: -1,
-            questionStartTime: null,
-            createdAt: serverTimestamp(),
-        });
 
-        router.push(`/play/${gamePin}?host=true`);
-    } catch (error) {
-        console.error("Error creating game session: ", error);
-        toast({
-            title: "Failed to host quiz",
-            description: "Could not create a game session. Please try again.",
-            variant: "destructive"
-        })
-    } finally {
-        setIsCreatingSession(null);
-    }
+    const gamePin = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Navigate immediately for an "instant" feel
+    router.push(`/play/${gamePin}?host=true`);
+
+    // Create the game session in the background. The play page will show a loading
+    // state until this is complete, and handles its own errors if this fails.
+    setDoc(doc(db, "games", gamePin), {
+        quizId: quiz.id,
+        quizTitle: quiz.title,
+        gameState: "waiting",
+        currentQuestionIndex: -1,
+        questionStartTime: null,
+        createdAt: serverTimestamp(),
+    }).catch((error) => {
+        console.error("Error creating game session in background: ", error);
+        // The play page will show an error if it can't find the game doc,
+        // so we just log it here.
+    });
   }
 
   const QuizSkeleton = () => (
