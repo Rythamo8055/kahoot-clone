@@ -10,7 +10,7 @@ import { FilePlus, Play, BarChart2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import { doc, setDoc, serverTimestamp, collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
@@ -29,34 +29,36 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!user) return;
+    if (!user) {
+        setLoadingQuizzes(false);
+        return;
+    };
 
-    const fetchQuizzes = async () => {
-        setLoadingQuizzes(true);
-        try {
-            const quizzesRef = collection(db, "quizzes");
-            const q = query(quizzesRef, where("userId", "==", user.uid), orderBy("createdAt", "desc"));
-            
-            const querySnapshot = await getDocs(q);
+    setLoadingQuizzes(true);
+    const quizzesRef = collection(db, "quizzes");
+    const q = query(quizzesRef, where("userId", "==", user.uid), orderBy("createdAt", "desc"));
+
+    const unsubscribe = onSnapshot(q, 
+        (querySnapshot) => {
             const userQuizzes = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             } as Quiz));
-            
             setQuizzes(userQuizzes);
-        } catch (error) {
+            setLoadingQuizzes(false);
+        }, 
+        (error) => {
             console.error("Error fetching quizzes:", error);
             toast({
                 title: "Failed to load quizzes",
-                description: "Could not fetch your quizzes from the database.",
+                description: "Could not fetch your quizzes. A required database index might be building.",
                 variant: "destructive"
-            })
-        } finally {
+            });
             setLoadingQuizzes(false);
         }
-    }
+    );
 
-    fetchQuizzes();
+    return () => unsubscribe();
   }, [user, authLoading, toast, router]);
   
   const handleHostQuiz = async (quiz: Quiz) => {
