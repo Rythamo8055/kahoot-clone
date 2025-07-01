@@ -6,7 +6,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import type { Quiz, Player, GameState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Loader2, Users, Crown, Home } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Users, Crown, Home, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
 import { doc, collection, onSnapshot, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
@@ -94,7 +94,39 @@ export default function PlayQuizPage() {
     setTimer(QUESTION_DURATION);
   }, [game?.currentQuestionIndex]);
   
-  const handleHostAction = useCallback(async () => {
+  // Question timer countdown effect (host-driven)
+  useEffect(() => {
+    if (game?.gameState !== 'question' || !game.questionStartTime) {
+        setTimer(QUESTION_DURATION);
+        return;
+    }
+
+    const interval = setInterval(() => {
+        const startTime = (game.questionStartTime as any).toMillis();
+        const elapsed = (Date.now() - startTime) / 1000;
+        const timeLeft = Math.max(0, QUESTION_DURATION - elapsed);
+        setTimer(timeLeft);
+
+        if (timeLeft === 0 && isHost && game.gameState === 'question') {
+            updateDoc(gameRef, { gameState: 'reveal' });
+        }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [game?.gameState, game?.questionStartTime, isHost, gameRef]);
+  
+  // Auto-transition from Reveal to Leaderboard (host-driven)
+  useEffect(() => {
+    if (isHost && game?.gameState === 'reveal') {
+      const timeoutId = setTimeout(() => {
+        updateDoc(gameRef, { gameState: 'leaderboard' });
+      }, REVEAL_DURATION * 1000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [game?.gameState, isHost, gameRef]);
+
+  const handleHostAction = async () => {
     if (!isHost || !game || isProcessing) return;
     setIsProcessing(true);
 
@@ -103,13 +135,7 @@ export default function PlayQuizPage() {
             case 'waiting':
               await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: 0, questionStartTime: serverTimestamp() });
               break;
-            case 'question': // Timer ends
-              await updateDoc(gameRef, { gameState: 'reveal' });
-              break;
-            case 'reveal': // Reveal duration ends
-              await updateDoc(gameRef, { gameState: 'leaderboard' });
-              break;
-            case 'leaderboard': // Host clicks "Next Question"
+            case 'leaderboard':
               if (!quiz) return;
               const nextIndex = game.currentQuestionIndex + 1;
               if (nextIndex < quiz.questions.length) {
@@ -128,39 +154,7 @@ export default function PlayQuizPage() {
     } finally {
         setIsProcessing(false);
     }
-  }, [isHost, game, quiz, gameRef, router, isProcessing, toast]);
-
-  // Timer countdown effect
-  useEffect(() => {
-    if (game?.gameState !== 'question' || !game.questionStartTime) {
-        setTimer(QUESTION_DURATION);
-        return;
-    }
-
-    const interval = setInterval(() => {
-        const startTime = (game.questionStartTime as any).toMillis();
-        const elapsed = (Date.now() - startTime) / 1000;
-        const timeLeft = Math.max(0, QUESTION_DURATION - elapsed);
-        setTimer(timeLeft);
-
-        if (timeLeft === 0 && isHost && !isProcessing) {
-            handleHostAction(); // Time's up, host client triggers reveal state
-        }
-    }, 250);
-
-    return () => clearInterval(interval);
-  }, [game?.gameState, game?.questionStartTime, isHost, handleHostAction, isProcessing]);
-  
-  // Auto-transition from Reveal to Leaderboard
-  useEffect(() => {
-    if (isHost && game?.gameState === 'reveal' && !isProcessing) {
-      const timeoutId = setTimeout(() => {
-        handleHostAction();
-      }, REVEAL_DURATION * 1000);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [game?.gameState, isHost, handleHostAction, isProcessing]);
+  };
 
 
   const handleAnswerSelect = async (answerIndex: number) => {
@@ -267,24 +261,6 @@ export default function PlayQuizPage() {
   const currentQuestion = quiz.questions[game.currentQuestionIndex];
   const isRevealPhase = game.gameState === 'reveal';
 
-  if (game.gameState === 'question' && isAnswered) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <Card className="w-full max-w-2xl text-center bg-card/60 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-3xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">
-              You've answered!
-            </CardTitle>
-            <CardDescription>Waiting for other players... The answer will be revealed soon.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if ((game.gameState === 'question' || game.gameState === 'reveal') && currentQuestion) {
     const localPlayerScore = players.find(p => p.id === localPlayer?.id)?.score ?? 0;
 
@@ -314,14 +290,18 @@ export default function PlayQuizPage() {
                       disabled={isAnswered || timer <= 0 || game.gameState !== 'question'}
                       className={cn(
                         "h-auto py-4 text-lg whitespace-normal justify-start transition-all duration-300 transform",
+                        // Player has selected an answer, but it's not reveal phase yet
+                        isMySelection && !isRevealPhase && "ring-4 ring-offset-2 ring-primary",
+                        // Reveal phase styling
                         isRevealPhase && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isMySelection ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),
-                        !isRevealPhase && !isMySelection && "hover:scale-105 hover:bg-accent/50"
+                        !isRevealPhase && !isAnswered && "hover:scale-105 hover:bg-accent/50"
                       )}
                       variant="outline"
                     >
                       <div className="flex items-center w-full">
                         <span className="mr-4 text-lg font-bold">{String.fromCharCode(65 + index)}</span>
                         <span className="flex-1 text-left">{option}</span>
+                         {isMySelection && !isRevealPhase && <ShieldCheck className="ml-4" />}
                         {isRevealPhase && isCorrect && <CheckCircle2 className="ml-4" />}
                         {isRevealPhase && isMySelection && !isCorrect && <XCircle className="ml-4" />}
                       </div>
@@ -331,6 +311,11 @@ export default function PlayQuizPage() {
               </div>
             </CardContent>
           </Card>
+           {isAnswered && !isRevealPhase && (
+             <div className="mt-6 text-center text-muted-foreground animate-pulse">
+                Waiting for others...
+             </div>
+           )}
         </div>
       );
   }
