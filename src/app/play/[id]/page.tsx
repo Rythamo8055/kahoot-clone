@@ -87,7 +87,7 @@ export default function PlayQuizPage() {
   }, [game?.currentQuestionIndex]);
 
   const handleHostAction = async () => {
-    if (!isHost || !game || !quiz || isProcessing) return;
+    if (!isHost || !game || isProcessing) return;
     setIsProcessing(true);
 
     try {
@@ -102,6 +102,11 @@ export default function PlayQuizPage() {
               await updateDoc(gameRef, { gameState: 'leaderboard' });
               break;
             case 'leaderboard':
+              if (!quiz) {
+                toast({ title: "Error", description: "Quiz data is not loaded yet. Please wait a moment.", variant: "destructive" });
+                setIsProcessing(false);
+                return;
+              }
               const nextIndex = game.currentQuestionIndex + 1;
               if (nextIndex < quiz.questions.length) {
                 await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: nextIndex });
