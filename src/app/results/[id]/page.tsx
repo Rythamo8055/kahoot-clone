@@ -8,7 +8,7 @@ import { Award, Repeat, Home } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { collectionGroup, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where, collectionGroup } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -39,18 +39,26 @@ export default function ResultsPage() {
         );
         
         const gamesSnapshot = await getDocs(gamesQuery);
-        const allPlayers: any[] = [];
 
-        for (const gameDoc of gamesSnapshot.docs) {
-          const playersQuery = collection(db, "games", gameDoc.id, "players");
-          const playersSnapshot = await getDocs(playersQuery);
-          playersSnapshot.docs.forEach(playerDoc => {
-            allPlayers.push({
-              gameId: gameDoc.id,
-              ...playerDoc.data()
-            });
-          });
+        if (gamesSnapshot.empty) {
+            setResultsData([]);
+            setLoading(false);
+            return;
         }
+
+        const playerPromises = gamesSnapshot.docs.map(gameDoc => {
+            const playersQuery = collection(db, "games", gameDoc.id, "players");
+            return getDocs(playersQuery);
+        });
+
+        const playerSnapshots = await Promise.all(playerPromises);
+
+        const allPlayers: any[] = [];
+        playerSnapshots.forEach(snapshot => {
+            snapshot.docs.forEach(playerDoc => {
+                allPlayers.push(playerDoc.data());
+            });
+        });
         
         const aggregatedData = allPlayers.reduce((acc, player) => {
             const existingPlayer = acc.find((p: any) => p.name === player.name);

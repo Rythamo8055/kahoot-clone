@@ -110,7 +110,7 @@ export default function CreateQuizPage() {
     const quizData = {
       title: data.title,
       description: data.description || "",
-      questions: data.questions.map(q => ({...q, id: Math.random().toString()})),
+      questions: data.questions.map(q => ({...q, id: crypto.randomUUID()})),
       userId: user.uid,
       createdAt: serverTimestamp()
     };

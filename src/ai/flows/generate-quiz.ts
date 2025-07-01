@@ -38,12 +38,14 @@ const generateQuizPrompt = ai.definePrompt({
   output: {schema: GenerateQuizOutputSchema},
   prompt: `You are a quiz generator AI.
 
-  Generate a quiz on the topic of "{{topic}}".  The quiz should be returned as a JSON string that is an array of question objects.
+  Generate a quiz on the topic of "{{topic}}". The quiz MUST have exactly 10 questions.
 
-  Each question object should have the following properties:
-  - question: the question text
-  - options: an array of possible answers
-  - answer: the correct answer (the index of the correct answer in the options array)
+  The quiz should be returned as a JSON string that is an array of question objects.
+
+  Each question object MUST have the following properties:
+  - question: the question text (string)
+  - options: an array of 4 possible answers (array of strings)
+  - answer: the 0-based index of the correct answer in the options array (number)
 
   Example:
   [
