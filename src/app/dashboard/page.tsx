@@ -6,19 +6,37 @@ import AppShell from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Quiz } from "@/lib/types";
-import { FilePlus, Play, BarChart2, Loader2 } from "lucide-react";
+import { FilePlus, Play, BarChart2, Loader2, MoreVertical, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import { doc, writeBatch, serverTimestamp, collection, query, where, onSnapshot } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp, collection, query, where, onSnapshot, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function DashboardPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
   const [isCreatingSession, setIsCreatingSession] = useState<string | null>(null);
+  const [quizToDelete, setQuizToDelete] = useState<Quiz | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
@@ -36,7 +54,6 @@ export default function DashboardPage() {
 
     setLoadingQuizzes(true);
     const quizzesRef = collection(db, "quizzes");
-    // Removed orderBy to avoid needing a composite index, sorting will be done on the client.
     const q = query(quizzesRef, where("userId", "==", user.uid));
 
     const unsubscribe = onSnapshot(q, 
@@ -46,7 +63,6 @@ export default function DashboardPage() {
                 ...doc.data()
             } as Quiz));
             
-            // Sort quizzes by creation date on the client
             userQuizzes.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
 
             setQuizzes(userQuizzes);
@@ -72,20 +88,14 @@ export default function DashboardPage() {
 
     const gamePin = Math.floor(100000 + Math.random() * 900000).toString();
     const hostPlayerName = user.displayName || 'Host';
-
-    // Generate a player document reference to get a client-side ID
     const playerDocRef = doc(collection(db, "games", gamePin, "players"));
     const hostPlayerId = playerDocRef.id;
 
-    // Store host's player info in localStorage immediately for optimistic UI
     localStorage.setItem(`player-${gamePin}`, JSON.stringify({ id: hostPlayerId, name: hostPlayerName }));
     
-    // Navigate immediately for an "instant" feel
     router.push(`/play/${gamePin}?host=true`);
 
-    // Create the game session and add the host as a player in the background using a batch.
     const batch = writeBatch(db);
-
     const gameRef = doc(db, "games", gamePin);
     batch.set(gameRef, {
         quizId: quiz.id,
@@ -96,21 +106,35 @@ export default function DashboardPage() {
         createdAt: serverTimestamp(),
     });
     
-    const hostAsPlayer = {
-      name: hostPlayerName,
-      score: 0,
-      userId: user.uid,
-    };
-
-    // Use the same playerDocRef from above to set the data for the host player
+    const hostAsPlayer = { name: hostPlayerName, score: 0, userId: user.uid };
     batch.set(playerDocRef, hostAsPlayer);
     
     batch.commit().catch((error) => {
         console.error("Error creating game session in background: ", error);
-        // The play page will show an error if it can't find the game doc,
-        // so we just log it here.
     });
   }
+
+  const handleDeleteQuiz = async () => {
+    if (!quizToDelete) return;
+
+    try {
+      await deleteDoc(doc(db, "quizzes", quizToDelete.id));
+      toast({
+        title: "Quiz Deleted",
+        description: `"${quizToDelete.title}" has been permanently deleted.`,
+      });
+    } catch (error) {
+      console.error("Error deleting quiz:", error);
+      toast({
+        title: "Deletion Failed",
+        description: "Could not delete the quiz. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setQuizToDelete(null);
+    }
+  };
+
 
   const QuizSkeleton = () => (
     <Card className="bg-card/60 backdrop-blur-sm">
@@ -121,10 +145,6 @@ export default function DashboardPage() {
       <CardContent>
         <Skeleton className="h-4 w-1/4" />
       </CardContent>
-      <CardFooter className="flex justify-between">
-        <Skeleton className="h-9 w-24" />
-        <Skeleton className="h-9 w-20" />
-      </CardFooter>
     </Card>
   )
 
@@ -142,6 +162,27 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
+       <AlertDialog open={!!quizToDelete} onOpenChange={(open) => !open && setQuizToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the quiz
+              "{quizToDelete?.title}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteQuiz}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
@@ -166,31 +207,47 @@ export default function DashboardPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {quizzes.map((quiz) => (
               <Card key={quiz.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300 bg-card/60 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="truncate">{quiz.title}</CardTitle>
-                  <CardDescription className="h-10 text-ellipsis overflow-hidden">
-                    {quiz.description}
-                  </CardDescription>
+                <CardHeader className="flex flex-row items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="truncate">{quiz.title}</CardTitle>
+                    <CardDescription className="h-10 text-ellipsis overflow-hidden pt-1">
+                      {quiz.description || "No description."}
+                    </CardDescription>
+                  </div>
+                   <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleHostQuiz(quiz)} disabled={isCreatingSession === quiz.id}>
+                         {isCreatingSession === quiz.id ? ( <Loader2 className="mr-2 h-4 w-4 animate-spin" />) : ( <Play className="mr-2 h-4 w-4" /> )}
+                        <span>Host</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/results/${quiz.id}?title=${encodeURIComponent(quiz.title)}`}>
+                          <BarChart2 className="mr-2 h-4 w-4" />
+                          <span>Results</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href={`/edit/${quiz.id}`}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          <span>Edit</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setQuizToDelete(quiz)} className="text-destructive focus:bg-destructive/20 focus:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </CardHeader>
                 <CardContent className="flex-grow">
                   <p className="text-sm text-muted-foreground">{quiz.questions.length} Questions</p>
                 </CardContent>
-                <CardFooter className="flex justify-between">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/results/${quiz.id}?title=${encodeURIComponent(quiz.title)}`}>
-                      <BarChart2 className="mr-2 h-4 w-4" />
-                      Results
-                    </Link>
-                  </Button>
-                  <Button size="sm" onClick={() => handleHostQuiz(quiz)} disabled={isCreatingSession === quiz.id}>
-                    {isCreatingSession === quiz.id ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Play className="mr-2 h-4 w-4" />
-                    )}
-                    Host
-                  </Button>
-                </CardFooter>
               </Card>
             ))}
           </div>
