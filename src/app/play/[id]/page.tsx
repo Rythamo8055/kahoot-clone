@@ -146,6 +146,25 @@ export default function PlayQuizPage() {
   }
 
   const sortedPlayerList = useMemo(() => sortedPlayers(players), [players]);
+  
+  const hostButtonText = useMemo(() => {
+    if (!game) return "";
+    switch (game.gameState) {
+      case "question":
+        return "Reveal Answer";
+      case "reveal":
+        return "Show Leaderboard";
+      case "leaderboard":
+        if (quiz && game.currentQuestionIndex >= quiz.questions.length - 1) {
+          return "Finish Quiz";
+        }
+        return "Next Question";
+      case "finished":
+        return "Back to Dashboard";
+      default:
+        return "Next";
+    }
+  }, [game, quiz]);
 
   if (!game) {
     return (
@@ -171,7 +190,6 @@ export default function PlayQuizPage() {
                 <p className="text-6xl font-bold tracking-widest text-primary">{gamePin}</p>
                  {isHost && (
                     <Button size="lg" onClick={handleHostAction} disabled={players.length === 0 || isProcessing}>
-                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                        Start Quiz ({players.length} {players.length === 1 ? 'player' : 'players'})
                     </Button>
                 )}
@@ -255,8 +273,7 @@ export default function PlayQuizPage() {
           {isHost && (
             <div className="mt-8 text-center">
                 <Button onClick={handleHostAction} disabled={isProcessing}>
-                  {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Next
+                  {hostButtonText}
                 </Button>
             </div>
           )}
@@ -293,8 +310,7 @@ export default function PlayQuizPage() {
 
             {isHost && (
                 <Button size="lg" onClick={handleHostAction} disabled={isProcessing}>
-                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isFinished ? "Back to Dashboard" : "Next Question"}
+                    {hostButtonText}
                 </Button>
             )}
 
