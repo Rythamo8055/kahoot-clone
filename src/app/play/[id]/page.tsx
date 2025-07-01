@@ -248,7 +248,7 @@ export default function PlayQuizPage() {
                     <Button
                       key={index}
                       onClick={() => handleAnswerSelect(index)}
-                      disabled={selectedAnswer !== null || isAnswerRevealed || isHost}
+                      disabled={selectedAnswer !== null || isAnswerRevealed}
                       className={cn(
                         "h-auto py-4 text-lg whitespace-normal justify-start transition-all duration-300 transform",
                         isAnswerRevealed && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isSelected ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),

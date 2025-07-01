@@ -10,7 +10,7 @@ import { FilePlus, Play, BarChart2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp, collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
@@ -67,24 +67,45 @@ export default function DashboardPage() {
   }, [user, authLoading, toast, router]);
   
   const handleHostQuiz = (quiz: Quiz) => {
-    if (isCreatingSession) return;
+    if (isCreatingSession || !user) return;
     setIsCreatingSession(quiz.id);
 
     const gamePin = Math.floor(100000 + Math.random() * 900000).toString();
+    const hostPlayerName = user.displayName || 'Host';
+
+    // Generate a player document reference to get a client-side ID
+    const playerDocRef = doc(collection(db, "games", gamePin, "players"));
+    const hostPlayerId = playerDocRef.id;
+
+    // Store host's player info in localStorage immediately for optimistic UI
+    localStorage.setItem(`player-${gamePin}`, JSON.stringify({ id: hostPlayerId, name: hostPlayerName }));
     
     // Navigate immediately for an "instant" feel
     router.push(`/play/${gamePin}?host=true`);
 
-    // Create the game session in the background. The play page will show a loading
-    // state until this is complete, and handles its own errors if this fails.
-    setDoc(doc(db, "games", gamePin), {
+    // Create the game session and add the host as a player in the background using a batch.
+    const batch = writeBatch(db);
+
+    const gameRef = doc(db, "games", gamePin);
+    batch.set(gameRef, {
         quizId: quiz.id,
         quizTitle: quiz.title,
         gameState: "waiting",
         currentQuestionIndex: -1,
         questionStartTime: null,
         createdAt: serverTimestamp(),
-    }).catch((error) => {
+    });
+    
+    const hostAsPlayer = {
+      name: hostPlayerName,
+      score: 0,
+      userId: user.uid,
+    };
+
+    // Use the same playerDocRef from above to set the data for the host player
+    batch.set(playerDocRef, hostAsPlayer);
+    
+    batch.commit().catch((error) => {
         console.error("Error creating game session in background: ", error);
         // The play page will show an error if it can't find the game doc,
         // so we just log it here.
