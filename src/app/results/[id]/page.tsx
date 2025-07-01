@@ -34,19 +34,21 @@ export default function ResultsPage() {
       try {
         const gamesQuery = query(
           collection(db, "games"),
-          where("quizId", "==", quizId),
-          where("gameState", "==", "finished")
+          where("quizId", "==", quizId)
         );
         
         const gamesSnapshot = await getDocs(gamesQuery);
 
-        if (gamesSnapshot.empty) {
+        // Filter for finished games on the client to avoid needing a composite index
+        const finishedGames = gamesSnapshot.docs.filter(doc => doc.data().gameState === 'finished');
+
+        if (finishedGames.length === 0) {
             setResultsData([]);
             setLoading(false);
             return;
         }
 
-        const playerPromises = gamesSnapshot.docs.map(gameDoc => {
+        const playerPromises = finishedGames.map(gameDoc => {
             const playersQuery = collection(db, "games", gameDoc.id, "players");
             return getDocs(playersQuery);
         });

@@ -10,7 +10,7 @@ import { FilePlus, Play, BarChart2, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
-import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
@@ -36,7 +36,8 @@ export default function DashboardPage() {
 
     setLoadingQuizzes(true);
     const quizzesRef = collection(db, "quizzes");
-    const q = query(quizzesRef, where("userId", "==", user.uid), orderBy("createdAt", "desc"));
+    // Removed orderBy to avoid needing a composite index, sorting will be done on the client.
+    const q = query(quizzesRef, where("userId", "==", user.uid));
 
     const unsubscribe = onSnapshot(q, 
         (querySnapshot) => {
@@ -44,6 +45,10 @@ export default function DashboardPage() {
                 id: doc.id,
                 ...doc.data()
             } as Quiz));
+            
+            // Sort quizzes by creation date on the client
+            userQuizzes.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+
             setQuizzes(userQuizzes);
             setLoadingQuizzes(false);
         }, 
@@ -51,7 +56,7 @@ export default function DashboardPage() {
             console.error("Error fetching quizzes:", error);
             toast({
                 title: "Failed to load quizzes",
-                description: "Could not fetch your quizzes. A required database index might be building.",
+                description: "Could not fetch your quizzes. Please try again.",
                 variant: "destructive"
             });
             setLoadingQuizzes(false);
