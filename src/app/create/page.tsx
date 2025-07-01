@@ -99,7 +99,7 @@ export default function CreateQuizPage() {
     }
   };
   
-  const onSubmit = async (data: QuizFormData) => {
+  const onSubmit = (data: QuizFormData) => {
     if (!user) {
       toast({ title: "Authentication Error", description: "You must be signed in to save a quiz.", variant: "destructive" });
       return;
@@ -115,20 +115,21 @@ export default function CreateQuizPage() {
       createdAt: serverTimestamp()
     };
     
-    try {
-        await addDoc(collection(db, "quizzes"), quizData);
-        toast({ title: "Quiz Saved!", description: "Your new quiz has been saved successfully." });
-        router.push("/dashboard");
-    } catch (error) {
+    // Navigate immediately for an "instant" feel
+    router.push("/dashboard");
+
+    addDoc(collection(db, "quizzes"), quizData)
+      .then(() => {
+        toast({ title: "Quiz Saved!", description: `"${data.title}" has been saved.` });
+      })
+      .catch((error) => {
         console.error("Error saving quiz: ", error);
         toast({
             title: "Failed to save quiz",
             description: "An error occurred while saving. Please try again.",
             variant: "destructive"
         });
-    } finally {
-        setIsSaving(false);
-    }
+      });
   };
 
   if (authLoading || !user) {
