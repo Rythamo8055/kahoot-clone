@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 
 const sortedPlayers = (players: Player[]) => [...players].sort((a, b) => b.score - a.score);
 const QUESTION_DURATION = 20; // in seconds
+const REVEAL_DURATION = 5; // in seconds
 
 export default function PlayQuizPage() {
   const router = useRouter();
@@ -102,17 +103,14 @@ export default function PlayQuizPage() {
             case 'waiting':
               await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: 0, questionStartTime: serverTimestamp() });
               break;
-            case 'question': // Host skips question or timer ends
+            case 'question': // Timer ends
               await updateDoc(gameRef, { gameState: 'reveal' });
               break;
-            case 'reveal':
+            case 'reveal': // Reveal duration ends
               await updateDoc(gameRef, { gameState: 'leaderboard' });
               break;
-            case 'leaderboard':
-              if (!quiz) {
-                toast({ title: "Error", description: "Quiz data is not loaded yet.", variant: "destructive" });
-                return;
-              }
+            case 'leaderboard': // Host clicks "Next Question"
+              if (!quiz) return;
               const nextIndex = game.currentQuestionIndex + 1;
               if (nextIndex < quiz.questions.length) {
                 await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: nextIndex, questionStartTime: serverTimestamp() });
@@ -145,13 +143,24 @@ export default function PlayQuizPage() {
         const timeLeft = Math.max(0, QUESTION_DURATION - elapsed);
         setTimer(timeLeft);
 
-        if (timeLeft === 0 && isHost && game.gameState === 'question' && !isProcessing) {
-            handleHostAction(); // Time's up, host moves to reveal state
+        if (timeLeft === 0 && isHost && !isProcessing) {
+            handleHostAction(); // Time's up, host client triggers reveal state
         }
     }, 250);
 
     return () => clearInterval(interval);
   }, [game?.gameState, game?.questionStartTime, isHost, handleHostAction, isProcessing]);
+  
+  // Auto-transition from Reveal to Leaderboard
+  useEffect(() => {
+    if (isHost && game?.gameState === 'reveal' && !isProcessing) {
+      const timeoutId = setTimeout(() => {
+        handleHostAction();
+      }, REVEAL_DURATION * 1000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [game?.gameState, isHost, handleHostAction, isProcessing]);
 
 
   const handleAnswerSelect = async (answerIndex: number) => {
@@ -164,9 +173,8 @@ export default function PlayQuizPage() {
     const isCorrect = answerIndex === currentQuestion.answer;
     
     const startTime = (game.questionStartTime as any).toMillis();
-    const timeTaken = (Date.now() - startTime) / 1000; // in seconds
+    const timeTaken = (Date.now() - startTime) / 1000;
 
-    // Points formula: 1000 points max, scaled down by time.
     const points = isCorrect ? Math.round(Math.max(0, 1000 * (1 - (timeTaken / (QUESTION_DURATION * 2))))) : 0;
     
     const playerRef = doc(db, "games", gamePin, "players", localPlayer.id);
@@ -186,8 +194,6 @@ export default function PlayQuizPage() {
     switch (game.gameState) {
       case "waiting":
         return `Start Quiz (${players.length} ${players.length === 1 ? 'player' : 'players'})`;
-      case "reveal":
-        return "Show Leaderboard";
       case "leaderboard":
         if (quiz && game.currentQuestionIndex >= quiz.questions.length - 1) {
           return "Finish Quiz";
@@ -261,6 +267,24 @@ export default function PlayQuizPage() {
   const currentQuestion = quiz.questions[game.currentQuestionIndex];
   const isRevealPhase = game.gameState === 'reveal';
 
+  if (game.gameState === 'question' && isAnswered) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <Card className="w-full max-w-2xl text-center bg-card/60 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-3xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-pink-400 to-accent">
+              You've answered!
+            </CardTitle>
+            <CardDescription>Waiting for other players... The answer will be revealed soon.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if ((game.gameState === 'question' || game.gameState === 'reveal') && currentQuestion) {
     const localPlayerScore = players.find(p => p.id === localPlayer?.id)?.score ?? 0;
 
@@ -291,7 +315,6 @@ export default function PlayQuizPage() {
                       className={cn(
                         "h-auto py-4 text-lg whitespace-normal justify-start transition-all duration-300 transform",
                         isRevealPhase && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isMySelection ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),
-                        !isRevealPhase && isMySelection && "bg-primary/80 ring-2 ring-primary text-primary-foreground",
                         !isRevealPhase && !isMySelection && "hover:scale-105 hover:bg-accent/50"
                       )}
                       variant="outline"
@@ -308,13 +331,6 @@ export default function PlayQuizPage() {
               </div>
             </CardContent>
           </Card>
-          {isHost && isRevealPhase && (
-            <div className="mt-8 text-center">
-                <Button onClick={handleHostAction} disabled={isProcessing}>
-                  {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : hostButtonText}
-                </Button>
-            </div>
-          )}
         </div>
       );
   }
@@ -372,5 +388,3 @@ export default function PlayQuizPage() {
     </div>
   );
 }
-
-    
