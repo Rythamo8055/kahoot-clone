@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import type { Quiz, Player, GameState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CheckCircle2, XCircle, Loader2, Users, Crown, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
-import { doc, collection, onSnapshot, updateDoc, getDoc } from "firebase/firestore";
+import { doc, collection, onSnapshot, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
+import { Progress } from "@/components/ui/progress";
 
 const sortedPlayers = (players: Player[]) => [...players].sort((a, b) => b.score - a.score);
+const QUESTION_DURATION = 20; // in seconds
 
 export default function PlayQuizPage() {
   const router = useRouter();
@@ -29,10 +31,13 @@ export default function PlayQuizPage() {
   const [localPlayer, setLocalPlayer] = useState<{ id: string; name: string } | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-
+  const [isAnswered, setIsAnswered] = useState(false);
+  const [timer, setTimer] = useState(QUESTION_DURATION);
+  
   const gameRef = useMemo(() => doc(db, "games", gamePin), [gamePin]);
   const playersRef = useMemo(() => collection(db, "games", gamePin, "players"), [gamePin]);
 
+  // Player and Game state subscriptions
   useEffect(() => {
     const storedPlayer = localStorage.getItem(`player-${gamePin}`);
     if (storedPlayer) {
@@ -63,6 +68,7 @@ export default function PlayQuizPage() {
     };
   }, [gamePin, router, toast, gameRef, playersRef]);
 
+  // Fetch quiz data when game starts
   useEffect(() => {
     if (!game?.quizId || quiz) return;
 
@@ -72,7 +78,7 @@ export default function PlayQuizPage() {
         if (quizSnap.exists()) {
             setQuiz({ id: quizSnap.id, ...quizSnap.data() } as Quiz);
         } else {
-            toast({ title: "Quiz not found", description: "The associated quiz for this game could not be found.", variant: "destructive" });
+            toast({ title: "Quiz not found", description: "The associated quiz could not be found.", variant: "destructive" });
             router.push("/dashboard");
         }
     };
@@ -80,22 +86,23 @@ export default function PlayQuizPage() {
     fetchQuiz();
   }, [game, quiz, router, toast]);
 
-
-  // Reset answer state on new question
+  // Reset state for new question
   useEffect(() => {
     setSelectedAnswer(null);
+    setIsAnswered(false);
+    setTimer(QUESTION_DURATION);
   }, [game?.currentQuestionIndex]);
-
-  const handleHostAction = async () => {
+  
+  const handleHostAction = useCallback(async () => {
     if (!isHost || !game || isProcessing) return;
     setIsProcessing(true);
 
     try {
         switch (game.gameState) {
             case 'waiting':
-              await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: 0 });
+              await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: 0, questionStartTime: serverTimestamp() });
               break;
-            case 'question':
+            case 'question': // Host skips question or timer ends
               await updateDoc(gameRef, { gameState: 'reveal' });
               break;
             case 'reveal':
@@ -103,13 +110,12 @@ export default function PlayQuizPage() {
               break;
             case 'leaderboard':
               if (!quiz) {
-                toast({ title: "Error", description: "Quiz data is not loaded yet. Please wait a moment.", variant: "destructive" });
-                setIsProcessing(false);
+                toast({ title: "Error", description: "Quiz data is not loaded yet.", variant: "destructive" });
                 return;
               }
               const nextIndex = game.currentQuestionIndex + 1;
               if (nextIndex < quiz.questions.length) {
-                await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: nextIndex });
+                await updateDoc(gameRef, { gameState: 'question', currentQuestionIndex: nextIndex, questionStartTime: serverTimestamp() });
               } else {
                 await updateDoc(gameRef, { gameState: 'finished' });
               }
@@ -124,16 +130,44 @@ export default function PlayQuizPage() {
     } finally {
         setIsProcessing(false);
     }
-  };
+  }, [isHost, game, quiz, gameRef, router, isProcessing, toast]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (game?.gameState !== 'question' || !game.questionStartTime) {
+        setTimer(QUESTION_DURATION);
+        return;
+    }
+
+    const interval = setInterval(() => {
+        const startTime = (game.questionStartTime as any).toMillis();
+        const elapsed = (Date.now() - startTime) / 1000;
+        const timeLeft = Math.max(0, QUESTION_DURATION - elapsed);
+        setTimer(timeLeft);
+
+        if (timeLeft === 0 && isHost && game.gameState === 'question' && !isProcessing) {
+            handleHostAction(); // Time's up, host moves to reveal state
+        }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [game?.gameState, game?.questionStartTime, isHost, handleHostAction, isProcessing]);
+
 
   const handleAnswerSelect = async (answerIndex: number) => {
-    if (!game || !localPlayer || selectedAnswer !== null || !quiz || game.gameState !== 'question') return;
+    if (!game || !localPlayer || isAnswered || !quiz || game.gameState !== 'question' || !game.questionStartTime) return;
+    
+    setIsAnswered(true);
     setSelectedAnswer(answerIndex);
 
     const currentQuestion = quiz.questions[game.currentQuestionIndex];
     const isCorrect = answerIndex === currentQuestion.answer;
     
-    const points = isCorrect ? 1000 : 0;
+    const startTime = (game.questionStartTime as any).toMillis();
+    const timeTaken = (Date.now() - startTime) / 1000; // in seconds
+
+    // Points formula: 1000 points max, scaled down by time.
+    const points = isCorrect ? Math.round(Math.max(0, 1000 * (1 - (timeTaken / (QUESTION_DURATION * 2))))) : 0;
     
     const playerRef = doc(db, "games", gamePin, "players", localPlayer.id);
     const currentPlayer = players.find(p => p.id === localPlayer.id);
@@ -150,8 +184,8 @@ export default function PlayQuizPage() {
   const hostButtonText = useMemo(() => {
     if (!game) return "";
     switch (game.gameState) {
-      case "question":
-        return "Reveal Answer";
+      case "waiting":
+        return `Start Quiz (${players.length} ${players.length === 1 ? 'player' : 'players'})`;
       case "reveal":
         return "Show Leaderboard";
       case "leaderboard":
@@ -164,7 +198,7 @@ export default function PlayQuizPage() {
       default:
         return "Next";
     }
-  }, [game, quiz]);
+  }, [game, quiz, players.length]);
 
   if (!game) {
     return (
@@ -190,7 +224,7 @@ export default function PlayQuizPage() {
                 <p className="text-6xl font-bold tracking-widest text-primary">{gamePin}</p>
                  {isHost && (
                     <Button size="lg" onClick={handleHostAction} disabled={players.length === 0 || isProcessing}>
-                       Start Quiz ({players.length} {players.length === 1 ? 'player' : 'players'})
+                       {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : hostButtonText}
                     </Button>
                 )}
             </CardContent>
@@ -238,23 +272,27 @@ export default function PlayQuizPage() {
                 <p className="text-sm font-medium text-muted-foreground">Question {game.currentQuestionIndex + 1} of {quiz.questions.length}</p>
                 <p className="text-lg font-bold text-primary">{localPlayerScore} points</p>
               </div>
-              <CardTitle className="text-2xl md:text-3xl text-center pt-6 font-headline">{currentQuestion.question}</CardTitle>
+              <div className="space-y-4">
+                <Progress value={(timer / QUESTION_DURATION) * 100} className="w-full" />
+                <CardTitle className="text-2xl md:text-3xl text-center pt-6 font-headline">{currentQuestion.question}</CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 {currentQuestion.options.map((option, index) => {
                   const isCorrect = index === currentQuestion.answer;
-                  const isSelected = index === selectedAnswer;
+                  const isMySelection = index === selectedAnswer;
 
                   return (
                     <Button
                       key={index}
                       onClick={() => handleAnswerSelect(index)}
-                      disabled={selectedAnswer !== null || isRevealPhase}
+                      disabled={isAnswered || timer <= 0 || game.gameState !== 'question'}
                       className={cn(
                         "h-auto py-4 text-lg whitespace-normal justify-start transition-all duration-300 transform",
-                        isRevealPhase && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isSelected ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),
-                        !isRevealPhase && (isSelected ? "bg-primary/80 ring-2 ring-primary text-primary-foreground" : "hover:scale-105 hover:bg-accent/50")
+                        isRevealPhase && (isCorrect ? "bg-green-500 hover:bg-green-600 text-white animate-pulse" : isMySelection ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "bg-muted hover:bg-muted opacity-50"),
+                        !isRevealPhase && isMySelection && "bg-primary/80 ring-2 ring-primary text-primary-foreground",
+                        !isRevealPhase && !isMySelection && "hover:scale-105 hover:bg-accent/50"
                       )}
                       variant="outline"
                     >
@@ -262,7 +300,7 @@ export default function PlayQuizPage() {
                         <span className="mr-4 text-lg font-bold">{String.fromCharCode(65 + index)}</span>
                         <span className="flex-1 text-left">{option}</span>
                         {isRevealPhase && isCorrect && <CheckCircle2 className="ml-4" />}
-                        {isRevealPhase && isSelected && !isCorrect && <XCircle className="ml-4" />}
+                        {isRevealPhase && isMySelection && !isCorrect && <XCircle className="ml-4" />}
                       </div>
                     </Button>
                   );
@@ -270,10 +308,10 @@ export default function PlayQuizPage() {
               </div>
             </CardContent>
           </Card>
-          {isHost && (
+          {isHost && isRevealPhase && (
             <div className="mt-8 text-center">
                 <Button onClick={handleHostAction} disabled={isProcessing}>
-                  {hostButtonText}
+                  {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : hostButtonText}
                 </Button>
             </div>
           )}
@@ -310,7 +348,7 @@ export default function PlayQuizPage() {
 
             {isHost && (
                 <Button size="lg" onClick={handleHostAction} disabled={isProcessing}>
-                    {hostButtonText}
+                    {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : hostButtonText}
                 </Button>
             )}
 
@@ -334,3 +372,5 @@ export default function PlayQuizPage() {
     </div>
   );
 }
+
+    
