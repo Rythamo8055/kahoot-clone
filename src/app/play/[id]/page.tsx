@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import type { Quiz, Player, GameState } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, XCircle, Loader2, Users, Crown, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
